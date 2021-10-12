@@ -48,6 +48,7 @@ public class DLX {
 				origc = c; // used for RET
 				c = R[c];  // dirty trick
 			}
+			//System.out.println("PC = " + PC + " op = " + op + " a = " + a + " b = " + b + " c = " + c);
 			switch (op) {
 				case ADD:
 				case ADDI:
@@ -198,7 +199,7 @@ public class DLX {
 					R[31] = (PC+1) * 4;
 					nextPC = c / 4;
 					break;
-				case RET: 
+				case RET:
 					if (origc == 0) break execloop; // remember: c==R[origc]
 					if ((c < 0) || (c > MemSize)) {
 						System.out.println(c + " is no address in memory (0.." 
@@ -439,6 +440,7 @@ public class DLX {
 	}
 	
 	static int assemble(int op) {
+		//System.out.println("0 Inputs -- op: " + op);
 		if (op != WRL) {
 			System.out.println("DLX.assemble: the only instruction without arguments is WRL!");
 			bug(1);
@@ -447,6 +449,7 @@ public class DLX {
 	}
 	
 	static int assemble(int op, int arg1) {
+		//System.out.println("1 Input -- op: " + op + " a: " + arg1);
 		switch (op) {
 			
 			// F1 Format
@@ -474,6 +477,7 @@ public class DLX {
 	}
 	
 	static int assemble(int op, int arg1, int arg2) {
+		//System.out.println("2 Inputs -- op: " + op + " a: " + arg1 + " b: " + arg2);
 		switch (op) {
 			
 			// F1 Format
@@ -498,6 +502,7 @@ public class DLX {
 	}
 	
 	static int assemble(int op, int arg1, int arg2, int arg3) {
+		//System.out.println("3 Inputs -- op: " + op + " a: " + arg1 + " b: " + arg2 + " c: " + arg3);
 		switch (op) {
 			
 			// F1 Format
@@ -538,6 +543,7 @@ public class DLX {
 			
 			default:
 				System.out.println("DLX.assemble: wrong opcode for three arg instruction!");
+				System.out.println(op);
 				bug(1);
 				return -1;
 		}

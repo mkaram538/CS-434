@@ -7,7 +7,6 @@ import java.io.IOException;
 public class Parser
 {
 	private Scanner scanner;
-	private int inputNumber;	// stores result when calling inputnum()
 	private int token;
 	public FileReader inputFile;
 	public java.util.Map<String, Integer> identMap = new java.util.HashMap<>();
@@ -270,6 +269,11 @@ public class Parser
 		scanner.Next();
 	}
 
+	public void whileStatementCheck(boolean activated) {
+		scanner.Next();
+
+	}
+
 	public void statementCheck(boolean activated) {
 		if (scanner.sym == 77) {
 			assignmentCheck(activated);
@@ -277,7 +281,10 @@ public class Parser
 			funcCallCheck(activated);
 		} else if (scanner.sym == 101) {
 			ifStatementCheck(activated);
-		} else {
+		} else if (scanner.sym == 102) {
+			whileStatementCheck(activated);
+		}
+		else {
 			printError(scanner.sym);
 		}
 	}

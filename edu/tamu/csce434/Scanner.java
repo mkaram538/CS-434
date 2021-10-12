@@ -253,7 +253,7 @@ public class Scanner {
         tokenMap.put("else", 90);
         tokenMap.put("call", 100);
         tokenMap.put("if", 101);
-        // tokenMap.put("while", 102);
+        tokenMap.put("while", 102);
         // tokenMap.put("return", 103);
         tokenMap.put("var", 110);
         // tokenMap.put("array", 111);
