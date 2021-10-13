@@ -113,6 +113,13 @@ public class Compiler
 		if (scanner.sym == 50) {
 			scanner.Next();
 			factorNumReg = expressionCheck(activated);
+			if (factorNumReg[0] == 1) {
+				buf[bufPointer] = DLX.assemble(16, factorRegister, 0, factorNumReg[1]);
+				factorNumReg[0] = 0;
+				factorNumReg[1] = factorRegister;
+				bufPointer++;
+				nextRegister++;
+			}
 			if (scanner.sym != 35) {
 				printError(scanner.sym);
 			}
