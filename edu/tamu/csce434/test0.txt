@@ -1,18 +1,9 @@
 main
-var x,y,z;
+var x, y;
 {
-	let x <- call inputnum();
-	let y <- call inputnum();
-	let z <- call inputnum();
-	call outputnum(x);
-	call outputnewline();
-	call outputnum(y);
-	call outputnewline();
-	call outputnum(z);
-	call outputnewline();
-    if x > y then
-    	call outputnum(x+y/z);
-    	call outputnewline();
-    fi;
+    let x <- 7;
+    let y <- 1 + 2 * 3 - 4 / 4 * 2 + x;
+    call outputnum(y);
 }.
+
   

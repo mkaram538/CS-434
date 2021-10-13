@@ -50,10 +50,7 @@ public class DLX {
 				origc = c; // used for RET
 				c = R[c];  // dirty trick
 			}
-//			if (i < 10) {
-//				System.out.println("PC = " + PC + " op = " + op + " a = " + a + " b = " + b + " c = " + c);
-//				i++;
-//			}
+
 			switch (op) {
 				case ADD:
 				case ADDI:
@@ -445,7 +442,6 @@ public class DLX {
 	}
 	
 	static int assemble(int op) {
-		//System.out.println("0 Inputs -- op: " + op);
 		if (op != WRL) {
 			System.out.println("DLX.assemble: the only instruction without arguments is WRL!");
 			bug(1);
@@ -454,7 +450,6 @@ public class DLX {
 	}
 	
 	static int assemble(int op, int arg1) {
-		//System.out.println("1 Input -- op: " + op + " a: " + arg1);
 		switch (op) {
 			
 			// F1 Format
@@ -482,7 +477,6 @@ public class DLX {
 	}
 	
 	static int assemble(int op, int arg1, int arg2) {
-		//System.out.println("2 Inputs -- op: " + op + " a: " + arg1 + " b: " + arg2);
 		switch (op) {
 			
 			// F1 Format
@@ -507,7 +501,6 @@ public class DLX {
 	}
 	
 	static int assemble(int op, int arg1, int arg2, int arg3) {
-		//System.out.println("3 Inputs -- op: " + op + " a: " + arg1 + " b: " + arg2 + " c: " + arg3);
 		switch (op) {
 			
 			// F1 Format

@@ -1,8 +1,6 @@
 package edu.tamu.csce434;
 
 
-import java.io.IOException;
-
 public class Compiler
 {
 	private edu.tamu.csce434.Scanner scanner;
@@ -14,56 +12,41 @@ public class Compiler
 	int buf[] = new int[3000];
 	int bufPointer = 0;
 	public java.util.Map<String, Integer> registerMap = new java.util.HashMap<>();
-	
-	
+
 	// Constructor of your Compiler
-	public Compiler(String args)
-	{
-		
+	public Compiler(String args) {
 		scanner = new Scanner(args);
-		
 	}
-	
-	
-	
+
 	// Implement this function to start compiling your input file
-	public int[] getProgram()  
-	{
+	public int[] getProgram() {
 		computation();
 
 		return java.util.Arrays.copyOf(buf, bufPointer);
 	}
 
-	private void printError(int i)
-	{
+	private void printError(int i) {
 		System.out.println("error");
-		for (i = 0; i < bufPointer; i++) {
-			System.out.print(DLX.disassemble(buf[i]));
-		}
 		System.exit(0);
 	}
 
 	// Use this function to accept a Token and and to get the next Token from the Scanner
-	private boolean accept(String s)
-	{
+	private boolean accept(String s) {
 		scanner.Next();
 		token = scanner.sym;
 		return scanner.String2Id(s) == token;
 	}
 
 	// Use this function whenever your program needs to expect a specific token
-	private void expect(String s)
-	{
+	private void expect(String s) {
 		if (accept(s))
 			return;
 
 		printError(scanner.sym);
-
 	}
 
 	// Implement this function to start parsing your input file
-	public void computation()
-	{
+	public void computation() {
 		token = scanner.sym;
 
 		computationCheck();
@@ -133,6 +116,7 @@ public class Compiler
 			if (scanner.sym != 35) {
 				printError(scanner.sym);
 			}
+			return factorNumReg;
 		} else if (scanner.sym == 60) {
 			factorNumReg[0] = 1;
 			factorNumReg[1] = scanner.val;
@@ -173,7 +157,11 @@ public class Compiler
 					if (multiplying) {
 						buf[bufPointer] = DLX.assemble(18, termRegister, rightFactorRegister[1], leftFactorRegister[1]);
 					} else {
-						buf[bufPointer] = DLX.assemble(3, termRegister, leftFactorRegister[1], rightFactorRegister[1]);
+						buf[bufPointer] = DLX.assemble(16, termRegister, 0, leftFactorRegister[1]);
+						nextRegister++;
+						bufPointer++;
+						buf[bufPointer] = DLX.assemble(3, nextRegister, termRegister, rightFactorRegister[1]);
+						termRegister = nextRegister;
 					}
 				} else if (rightFactorRegister[0] == 1) {
 					if (multiplying) {
@@ -196,7 +184,6 @@ public class Compiler
 			scanner.Next();
 		}
 		termNumReg = leftFactorRegister;
-
 		return termNumReg;
 	}
 
@@ -246,7 +233,6 @@ public class Compiler
 			}
 		}
 		exprNumReg = leftExpressionRegister;
-
 		return exprNumReg;
 	}
 
@@ -476,10 +462,5 @@ public class Compiler
 		expect(".");
 		buf[bufPointer] = DLX.assemble(49, 0);
 		bufPointer++;
-
-//		for (int i = 0; i < bufPointer; i++) {
-//			System.out.print(DLX.disassemble(buf[i]));
-//		}
 	}
-
 }
