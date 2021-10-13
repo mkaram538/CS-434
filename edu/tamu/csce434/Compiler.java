@@ -1,8 +1,6 @@
 package edu.tamu.csce434;
 
 
-import java.io.IOException;
-
 public class Compiler
 {
 	private edu.tamu.csce434.Scanner scanner;
@@ -14,56 +12,41 @@ public class Compiler
 	int buf[] = new int[3000];
 	int bufPointer = 0;
 	public java.util.Map<String, Integer> registerMap = new java.util.HashMap<>();
-	
-	
+
 	// Constructor of your Compiler
-	public Compiler(String args)
-	{
-		
+	public Compiler(String args) {
 		scanner = new Scanner(args);
-		
 	}
-	
-	
-	
+
 	// Implement this function to start compiling your input file
-	public int[] getProgram()  
-	{
+	public int[] getProgram() {
 		computation();
 
 		return java.util.Arrays.copyOf(buf, bufPointer);
 	}
 
-	private void printError(int i)
-	{
+	private void printError(int i) {
 		System.out.println("error");
-		for (i = 0; i < bufPointer; i++) {
-			System.out.print(DLX.disassemble(buf[i]));
-		}
 		System.exit(0);
 	}
 
 	// Use this function to accept a Token and and to get the next Token from the Scanner
-	private boolean accept(String s)
-	{
+	private boolean accept(String s) {
 		scanner.Next();
 		token = scanner.sym;
 		return scanner.String2Id(s) == token;
 	}
 
 	// Use this function whenever your program needs to expect a specific token
-	private void expect(String s)
-	{
+	private void expect(String s) {
 		if (accept(s))
 			return;
 
 		printError(scanner.sym);
-
 	}
 
 	// Implement this function to start parsing your input file
-	public void computation()
-	{
+	public void computation() {
 		token = scanner.sym;
 
 		computationCheck();
@@ -75,10 +58,17 @@ public class Compiler
 		}
 	}
 
-	public void relOperation(int statementType, int leftRegister, int relationType, int rightRegister) {
+	public void relOperation(int statementType, int leftRegister[], int relationType, int rightRegister[]) {
 		int relOpRegister = nextRegister;
 		int operationLocation = bufPointer;
-		buf[bufPointer] = DLX.assemble(1, relOpRegister, leftRegister, rightRegister);
+		if (leftRegister[0] == 1 & rightRegister[0] == 1) {
+			int comparison = leftRegister[1] - rightRegister[1];
+			buf[bufPointer] = DLX.assemble(16, relOpRegister, 0, comparison);
+		} else if (rightRegister[0] == 1) {
+			buf[bufPointer] = DLX.assemble(17, relOpRegister, leftRegister[1], rightRegister[1]);
+		} else {
+			buf[bufPointer] = DLX.assemble(1, relOpRegister, leftRegister[1], rightRegister[1]);
+		}
 		bufPointer++;
 		nextRegister++;
 
@@ -117,18 +107,20 @@ public class Compiler
 		}
 	}
 
-	public int factorCheck(boolean activated) {
+	public int[] factorCheck(boolean activated) {
+		int[] factorNumReg = new int[2];
 		int factorRegister = nextRegister;
 		if (scanner.sym == 50) {
 			scanner.Next();
-			factorRegister = expressionCheck(activated);
+			factorNumReg = expressionCheck(activated);
 			if (scanner.sym != 35) {
 				printError(scanner.sym);
 			}
+			return factorNumReg;
 		} else if (scanner.sym == 60) {
-			buf[bufPointer] = DLX.assemble(16, factorRegister, 0,scanner.val);
-			bufPointer++;
-			nextRegister++;
+			factorNumReg[0] = 1;
+			factorNumReg[1] = scanner.val;
+			return factorNumReg;
 		} else if (scanner.sym == 61) {
 			factorRegister = registerMap.get(scanner.Id2String(scanner.id));
 		} else if (scanner.sym == 100) {
@@ -136,12 +128,14 @@ public class Compiler
 		} else {
 			printError(scanner.sym);
 		}
-		return factorRegister;
+		factorNumReg[1] = factorRegister;
+		return factorNumReg;
 	}
 
-	public int termCheck(boolean activated) {
-		int termRegister = 0;
-		int leftFactorRegister = factorCheck(activated);
+	public int[] termCheck(boolean activated) {
+		int[] termNumReg;
+		int termRegister;
+		int[] leftFactorRegister = factorCheck(activated);
 		boolean multiplying;
 		scanner.Next();
 		if (scanner.sym != 1 && scanner.sym != 2) {
@@ -150,23 +144,53 @@ public class Compiler
 		while (scanner.sym == 1 || scanner.sym == 2) {
 			multiplying = scanner.sym == 1;
 			scanner.Next();
-			int rightFactorRegister = factorCheck(activated);
+			int[] rightFactorRegister = factorCheck(activated);
 			termRegister = nextRegister;
-			if (multiplying) {
-				buf[bufPointer] = DLX.assemble(2, termRegister, leftFactorRegister, rightFactorRegister);
+			if (leftFactorRegister[0] == 1 & rightFactorRegister[0] == 1) {
+				if (multiplying) {
+					leftFactorRegister[1] = leftFactorRegister[1] * rightFactorRegister[1];
+				} else {
+					leftFactorRegister[1] = leftFactorRegister[1] / rightFactorRegister[1];
+				}
 			} else {
-				buf[bufPointer] = DLX.assemble(3, termRegister, leftFactorRegister, rightFactorRegister);
+				if (leftFactorRegister[0] == 1) {
+					if (multiplying) {
+						buf[bufPointer] = DLX.assemble(18, termRegister, rightFactorRegister[1], leftFactorRegister[1]);
+					} else {
+						buf[bufPointer] = DLX.assemble(16, termRegister, 0, leftFactorRegister[1]);
+						nextRegister++;
+						bufPointer++;
+						buf[bufPointer] = DLX.assemble(3, nextRegister, termRegister, rightFactorRegister[1]);
+						termRegister = nextRegister;
+					}
+				} else if (rightFactorRegister[0] == 1) {
+					if (multiplying) {
+						buf[bufPointer] = DLX.assemble(18, termRegister, leftFactorRegister[1], rightFactorRegister[1]);
+					} else {
+						buf[bufPointer] = DLX.assemble(19, termRegister, leftFactorRegister[1], rightFactorRegister[1]);
+					}
+				} else {
+					if (multiplying) {
+						buf[bufPointer] = DLX.assemble(2, termRegister, leftFactorRegister[1], rightFactorRegister[1]);
+					} else {
+						buf[bufPointer] = DLX.assemble(3, termRegister, leftFactorRegister[1], rightFactorRegister[1]);
+					}
+				}
+				leftFactorRegister[1] = termRegister;
+				leftFactorRegister[0] = 0;
+				bufPointer++;
+				nextRegister++;
 			}
-			bufPointer++;
 			scanner.Next();
 		}
-		nextRegister++;
-		return termRegister;
+		termNumReg = leftFactorRegister;
+		return termNumReg;
 	}
 
-	public int expressionCheck(boolean activated) {
-		int expressionRegister = 0;
-		int leftExpressionRegister = termCheck(activated);
+	public int[] expressionCheck(boolean activated) {
+		int[] exprNumReg;
+		int expressionRegister;
+		int[] leftExpressionRegister = termCheck(activated);
 		boolean adding;
 		if (scanner.sym != 11 && scanner.sym != 12) {
 			return leftExpressionRegister;
@@ -174,23 +198,48 @@ public class Compiler
 		while (scanner.sym == 11 || scanner.sym == 12) {
 			adding = scanner.sym == 11;
 			scanner.Next();
-			int rightExpressionRegister = termCheck(activated);
+			int[] rightExpressionRegister = termCheck(activated);
 			expressionRegister = nextRegister;
-			if (adding) {
-				buf[bufPointer] = DLX.assemble(0, expressionRegister, leftExpressionRegister, rightExpressionRegister);
+			if (leftExpressionRegister[0] == 1 & rightExpressionRegister[0] == 1) {
+				if (adding) {
+					leftExpressionRegister[1] = leftExpressionRegister[1] + rightExpressionRegister[1];
+				} else {
+					leftExpressionRegister[1] = leftExpressionRegister[1] - rightExpressionRegister[1];
+				}
 			} else {
-				buf[bufPointer] = DLX.assemble(1, expressionRegister, leftExpressionRegister, rightExpressionRegister);
+				if (leftExpressionRegister[0] == 1) {
+					if (adding) {
+						buf[bufPointer] = DLX.assemble(16, expressionRegister, rightExpressionRegister[1], leftExpressionRegister[1]);
+					} else {
+						buf[bufPointer] = DLX.assemble(1, expressionRegister, leftExpressionRegister[1], rightExpressionRegister[1]);
+					}
+				} else if (rightExpressionRegister[0] == 1) {
+					if (adding) {
+						buf[bufPointer] = DLX.assemble(16, expressionRegister, leftExpressionRegister[1], rightExpressionRegister[1]);
+					} else {
+						buf[bufPointer] = DLX.assemble(17, expressionRegister, leftExpressionRegister[1], rightExpressionRegister[1]);
+					}
+				} else {
+					if (adding) {
+						buf[bufPointer] = DLX.assemble(0, expressionRegister, leftExpressionRegister[1], rightExpressionRegister[1]);
+					} else {
+						buf[bufPointer] = DLX.assemble(1, expressionRegister, leftExpressionRegister[1], rightExpressionRegister[1]);
+					}
+				}
+				leftExpressionRegister[1] = expressionRegister;
+				leftExpressionRegister[0] = 0;
+				bufPointer++;
+				nextRegister++;
 			}
-			bufPointer++;
 		}
-		nextRegister++;
-		return expressionRegister;
+		exprNumReg = leftExpressionRegister;
+		return exprNumReg;
 	}
 
 	public void relationCheck(int statementType, boolean activated) {
-		int leftRegister;
+		int[] leftRegister;
 		int relationType;
-		int rightRegister;
+		int[] rightRegister;
 
 		leftRegister = expressionCheck(activated);
 		relationType = scanner.sym;
@@ -208,10 +257,14 @@ public class Compiler
 		String currentIdent = scanner.Id2String(scanner.id);
 		expect("<-");
 		scanner.Next();
-		int expressionRegister = expressionCheck(activated);
+		int[] expressionRegister = expressionCheck(activated);
 		if (activated) {
 			int register = registerMap.get(currentIdent);
-			buf[bufPointer] = DLX.assemble(16, register, expressionRegister, 0);
+			if (expressionRegister[0] == 1) {
+				buf[bufPointer] = DLX.assemble(16, register, 0, expressionRegister[1]);
+			} else {
+				buf[bufPointer] = DLX.assemble(16, register, expressionRegister[1], 0);
+			}
 			bufPointer++;
 		}
 	}
@@ -222,7 +275,7 @@ public class Compiler
 			printError(scanner.sym);
 		}
 		String funcType = scanner.Id2String(scanner.id);
-		int funcValueRegister = 0;
+		int[] funcValueRegister = new int[2];
 
 		if (funcType.equals("inputnum")) {
 			scanner.Next();
@@ -253,7 +306,13 @@ public class Compiler
 			if (activated) {
 				switch (funcType) {
 					case "outputnum":
-						buf[bufPointer] = DLX.assemble(51, funcValueRegister);
+						if (funcValueRegister[0] == 1) {
+							buf[bufPointer] = DLX.assemble(16, nextRegister, 0, funcValueRegister[1]);
+							funcValueRegister[1] = nextRegister;
+							bufPointer++;
+							nextRegister++;
+						}
+						buf[bufPointer] = DLX.assemble(51, funcValueRegister[1]);
 						bufPointer++;
 						break;
 					case "outputnewline":
@@ -403,10 +462,5 @@ public class Compiler
 		expect(".");
 		buf[bufPointer] = DLX.assemble(49, 0);
 		bufPointer++;
-
-		for (int i = 0; i < bufPointer; i++) {
-			System.out.print(DLX.disassemble(buf[i]));
-		}
 	}
-
 }
