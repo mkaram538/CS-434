@@ -1,29 +1,18 @@
 main
-var x;
+var x,y,z;
 {
-    let x <- call inputnum();
-    call outputnum(x);
-    call outputnewline();
-    if x < 2 then
-        call outputnum(x*2);
-        if x > 9 then
-            let x <- x - 5;
-        else
-            let x <- x * 4 + 4 / 2;
-        fi;
-        if x < 9 then
-            let x <- x - 5;
-        else
-            let x <- x * 4 + 4 / 2
-        fi;
-        call outputnewline();
-        call outputnum(x*2);
-        call outputnewline();
-    else
-        call outputnum(100*x);
-        call outputnewline();
+	let x <- call inputnum();
+	let y <- call inputnum();
+	let z <- call inputnum();
+	call outputnum(x);
+	call outputnewline();
+	call outputnum(y);
+	call outputnewline();
+	call outputnum(z);
+	call outputnewline();
+    if x > y then
+    	call outputnum(x+y/z);
+    	call outputnewline();
     fi;
-    call outputnum(10+1);
-    call outputnewline();
 }.
   
