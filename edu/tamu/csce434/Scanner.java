@@ -243,7 +243,7 @@ public class Scanner {
         tokenMap.put(")", 35);
         tokenMap.put("<-", 40);
         tokenMap.put("then", 41);
-        // tokenMap.put("do", 42);
+        tokenMap.put("do", 42);
         tokenMap.put("(", 50);
         tokenMap.put(";", 70);
         tokenMap.put("let", 77);

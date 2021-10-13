@@ -6,11 +6,11 @@ import java.io.IOException;
 public class Compiler
 {
 	private edu.tamu.csce434.Scanner scanner;
-	private int token;
-	private int nextRegister = 1;
-	private int startCondRegister = 1;
-	private int endCondRegister = 1;
-	private java.util.Vector<int[]> storedInstructions = new java.util.Vector<>();
+	int token;
+	int nextRegister = 1;
+	java.util.Vector<Integer> ifCondLocation = new java.util.Vector<>();
+	java.util.Vector<Integer> elseCondLocation = new java.util.Vector<>();
+	java.util.Vector<Integer> whileCondLocation = new java.util.Vector<>();
 	int buf[] = new int[3000];
 	int bufPointer = 0;
 	public java.util.Map<String, Integer> registerMap = new java.util.HashMap<>();
@@ -37,6 +37,9 @@ public class Compiler
 	private void printError(int i)
 	{
 		System.out.println("error");
+		for (i = 0; i < bufPointer; i++) {
+			System.out.print(DLX.disassemble(buf[i]));
+		}
 		System.exit(0);
 	}
 
@@ -72,34 +75,46 @@ public class Compiler
 		}
 	}
 
-	public boolean relOperation(int leftRegister, int relationType, int rightRegister) {
-		int relOpRegister = bufPointer;
+	public void relOperation(int statementType, int leftRegister, int relationType, int rightRegister) {
+		int relOpRegister = nextRegister;
+		int operationLocation = bufPointer;
 		buf[bufPointer] = DLX.assemble(1, relOpRegister, leftRegister, rightRegister);
 		bufPointer++;
 		nextRegister++;
 
-		endCondRegister = bufPointer;
+		if (statementType == 0) {
+			ifCondLocation.add(0, bufPointer);
+		} else {
+			whileCondLocation.add(0, bufPointer);
+			whileCondLocation.add(0, operationLocation);
+		}
+
 		switch (relationType) {
 			case 20:
-				buf[bufPointer] = DLX.assemble(40, relOpRegister, 0);
-				bufPointer++;
-			case 21:
 				buf[bufPointer] = DLX.assemble(41, relOpRegister, 0);
 				bufPointer++;
-			case 22:
-				buf[bufPointer] = DLX.assemble(42, relOpRegister, 0);
+				break;
+			case 21:
+				buf[bufPointer] = DLX.assemble(40, relOpRegister, 0);
 				bufPointer++;
-			case 23:
+				break;
+			case 22:
 				buf[bufPointer] = DLX.assemble(43, relOpRegister, 0);
 				bufPointer++;
-			case 24:
-				buf[bufPointer] = DLX.assemble(44, relOpRegister, 0);
+				break;
+			case 23:
+				buf[bufPointer] = DLX.assemble(42, relOpRegister, 0);
 				bufPointer++;
-			case 25:
+				break;
+			case 24:
 				buf[bufPointer] = DLX.assemble(45, relOpRegister, 0);
 				bufPointer++;
+				break;
+			case 25:
+				buf[bufPointer] = DLX.assemble(44, relOpRegister, 0);
+				bufPointer++;
+				break;
 		}
-		return false;
 	}
 
 	public int factorCheck(boolean activated) {
@@ -125,7 +140,7 @@ public class Compiler
 	}
 
 	public int termCheck(boolean activated) {
-		int termRegister = nextRegister;
+		int termRegister = 0;
 		int leftFactorRegister = factorCheck(activated);
 		boolean multiplying;
 		scanner.Next();
@@ -136,6 +151,7 @@ public class Compiler
 			multiplying = scanner.sym == 1;
 			scanner.Next();
 			int rightFactorRegister = factorCheck(activated);
+			termRegister = nextRegister;
 			if (multiplying) {
 				buf[bufPointer] = DLX.assemble(2, termRegister, leftFactorRegister, rightFactorRegister);
 			} else {
@@ -149,7 +165,7 @@ public class Compiler
 	}
 
 	public int expressionCheck(boolean activated) {
-		int expressionRegister = nextRegister;
+		int expressionRegister = 0;
 		int leftExpressionRegister = termCheck(activated);
 		boolean adding;
 		if (scanner.sym != 11 && scanner.sym != 12) {
@@ -159,6 +175,7 @@ public class Compiler
 			adding = scanner.sym == 11;
 			scanner.Next();
 			int rightExpressionRegister = termCheck(activated);
+			expressionRegister = nextRegister;
 			if (adding) {
 				buf[bufPointer] = DLX.assemble(0, expressionRegister, leftExpressionRegister, rightExpressionRegister);
 			} else {
@@ -170,7 +187,7 @@ public class Compiler
 		return expressionRegister;
 	}
 
-	public boolean relationCheck(boolean activated) {
+	public void relationCheck(int statementType, boolean activated) {
 		int leftRegister;
 		int relationType;
 		int rightRegister;
@@ -180,7 +197,7 @@ public class Compiler
 		relOpCheck();
 		scanner.Next();
 		rightRegister = expressionCheck(activated);
-		return relOperation(leftRegister, relationType, rightRegister);
+		relOperation(statementType, leftRegister, relationType, rightRegister);
 	}
 
 	public void assignmentCheck(boolean activated) {
@@ -217,7 +234,7 @@ public class Compiler
 				buf[bufPointer] = DLX.assemble(50, inputRegister);
 				bufPointer++;
 				nextRegister++;
-				return nextRegister;
+				return inputRegister;
 			}
 			return 0;
 		} else {
@@ -252,17 +269,32 @@ public class Compiler
 
 	public void ifStatementCheck(boolean activated) {
 		scanner.Next();
-		boolean ifValue = relationCheck(activated);
+		relationCheck(0, activated);
 		if (scanner.sym != 41) {
 			printError(scanner.sym);
 		}
 		scanner.Next();
-		statSequenceCheck(ifValue && activated);
+		statSequenceCheck(true);
+
+		buf[bufPointer] = DLX.assemble(40, 0, 1);
+		elseCondLocation.add(0, bufPointer);
+		bufPointer++;
+
+		int ifLocation = ifCondLocation.remove(0);
+
+		DLX.disassem(buf[ifLocation]);
+
+		buf[ifLocation] = DLX.assemble(DLX.op, DLX.a, bufPointer - ifLocation);
 
 		if (scanner.sym == 90) {
 			scanner.Next();
-			statSequenceCheck(!ifValue && activated);
+			statSequenceCheck(true);
 		}
+
+		int elseLocation = elseCondLocation.remove(0);
+
+		buf[elseLocation] = DLX.assemble(40, 0, bufPointer - elseLocation);
+
 		if (scanner.sym != 82) {
 			printError(scanner.sym);
 		}
@@ -271,7 +303,28 @@ public class Compiler
 
 	public void whileStatementCheck(boolean activated) {
 		scanner.Next();
+		relationCheck(1, activated);
+		if (scanner.sym != 42) {
+			printError(scanner.sym);
+		}
+		scanner.Next();
+		statSequenceCheck(true);
 
+		int conditionLocation = whileCondLocation.remove(0);
+
+		buf[bufPointer] = DLX.assemble(40, 0, conditionLocation - bufPointer);
+		bufPointer++;
+
+		int whileLocation = whileCondLocation.remove(0);
+
+		DLX.disassem(buf[whileLocation]);
+
+		buf[whileLocation] = DLX.assemble(DLX.op, DLX.a, bufPointer - whileLocation);
+
+		if (scanner.sym != 81) {
+			printError(scanner.sym);
+		}
+		scanner.Next();
 	}
 
 	public void statementCheck(boolean activated) {
@@ -293,7 +346,7 @@ public class Compiler
 		statementCheck(activated);
 		while (scanner.sym == 70) {
 			scanner.Next();
-			if (scanner.sym == 77 || scanner.sym == 100 || scanner.sym == 101) {
+			if (scanner.sym == 77 || scanner.sym == 100 || scanner.sym == 101 || scanner.sym == 102) {
 				statementCheck(activated);
 			} else {
 				return;
@@ -350,6 +403,10 @@ public class Compiler
 		expect(".");
 		buf[bufPointer] = DLX.assemble(49, 0);
 		bufPointer++;
+
+		for (int i = 0; i < bufPointer; i++) {
+			System.out.print(DLX.disassemble(buf[i]));
+		}
 	}
 
 }

@@ -38,6 +38,8 @@ public class DLX {
 
 		try {
 
+		int i = 0;
+
 		execloop:
 		while (true) {
 			R[0] = 0;
@@ -48,7 +50,10 @@ public class DLX {
 				origc = c; // used for RET
 				c = R[c];  // dirty trick
 			}
-			//System.out.println("PC = " + PC + " op = " + op + " a = " + a + " b = " + b + " c = " + c);
+//			if (i < 10) {
+//				System.out.println("PC = " + PC + " op = " + op + " a = " + a + " b = " + b + " c = " + c);
+//				i++;
+//			}
 			switch (op) {
 				case ADD:
 				case ADDI:
