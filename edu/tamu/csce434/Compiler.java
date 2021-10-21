@@ -412,12 +412,16 @@ public class Compiler
 		statementCheck(activated);
 		while (scanner.sym == 70) {
 			scanner.Next();
-			if (scanner.sym == 77 || scanner.sym == 100 || scanner.sym == 101 || scanner.sym == 102) {
+			if (isStatCheck()) {
 				statementCheck(activated);
 			} else {
 				return;
 			}
 		}
+	}
+
+	public bool isStatCheck() {
+		return (scanner.sym == 77 || scanner.sym == 100 || scanner.sym == 101 || scanner.sym == 102);
 	}
 
 	public void varDeclCheck() {
@@ -449,6 +453,53 @@ public class Compiler
 		}
 	}
 
+	public void funcDeclCheck() {
+		scanner.Next();
+		if (scanner.sym != 61) {
+			printError(scanner.sym);
+		}
+		formalParamCheck();
+		scanner.Next();
+		funcBodyCheck();
+		scanner.Next();
+		if (scanner.sym == 70) {
+			printError(scanner.sym);
+		}
+	}
+
+	public void formalParamCheck() {
+		if (scanner.sym != 50) {
+			printError(scanner.sym);
+		}
+		scanner.Next();
+		while (scanner.sym != 35) {
+			if (scanner.sym != 61) {
+				printError(scanner.sym);
+			}
+			scanner.Next();
+			if (scanner.sym == 31) {
+				scanner.Next();
+			}
+		}
+	}
+
+	public void funcBodyCheck() {
+		if (scanner.sym == 110) {
+			varDeclCheck();
+			scanner.Next();
+		}
+		if (scanner.sym != 150) {
+			printError(scanner.sym);
+		}
+		scanner.Next();
+		if (isStatCheck()) {
+			statSequenceCheck();
+		}
+		if (scanner.sym != 80) {
+			printError(scanner.sym);
+		}
+	}
+
 	public void computationCheck() {
 		if (scanner.sym != 200) {
 			printError(scanner.sym);
@@ -456,6 +507,10 @@ public class Compiler
 		scanner.Next();
 		if (scanner.sym == 110) {
 			varDeclCheck();
+			scanner.Next();
+		}
+		while (scanner.sym == 112 || scanner.sym == 113) {
+			funcDeclCheck();
 			scanner.Next();
 		}
 		if (scanner.sym != 150) {

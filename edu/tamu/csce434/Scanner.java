@@ -15,7 +15,7 @@ public class Scanner {
     public FileReader codeFile;
     public java.util.Map<String, Integer> tokenMap;
     public Vector<String> identMap;
-    
+
 	public void closefile() {
         try {
             codeFile.close();
@@ -24,8 +24,8 @@ public class Scanner {
         }
 	}
 
-	/** 
-	 * Advance to the next token 
+	/**
+	 * Advance to the next token
 	 */
     public void Next() {
         int charType = charTypeCheck(currentChar);
@@ -45,7 +45,7 @@ public class Scanner {
                     break;
         }
 	}
-  
+
     /**
      * Move to next char in the input
      */
@@ -205,7 +205,7 @@ public class Scanner {
 
     /**
      * Signal an error message
-     * 
+     *
      */
     public void Error(String errorMsg) {
         System.out.println(errorMsg);
@@ -254,13 +254,12 @@ public class Scanner {
         tokenMap.put("call", 100);
         tokenMap.put("if", 101);
         tokenMap.put("while", 102);
-        // tokenMap.put("return", 103);
+        tokenMap.put("return", 103);
         tokenMap.put("var", 110);
         // tokenMap.put("array", 111);
-        // tokenMap.put("function", 112);
-        // tokenMap.put("procedure", 113);
+        tokenMap.put("function", 112);
+        tokenMap.put("procedure", 113);
         tokenMap.put("{", 150);
         tokenMap.put("main", 200);
     }
 }
-
