@@ -233,6 +233,10 @@ public class DLX {
 					bug(1);
 			}
 			PC = nextPC;
+//			for (int p = 0; p < 10; p++) {
+//				System.out.println("PC = " + PC + " reg = " + p + " value = " + DLX.R[p]);
+//			}
+//			System.out.println();
 		}
 
 		}

@@ -1,9 +1,21 @@
 main
-var x, y;
+var input, myvar;
+function getsumton(n)
 {
-    let x <- 7;
-    let y <- ((1 + 2) * 4) - 4 / 4 * 2 + x;
-    call outputnum(y);
+	if n == 1 then
+		return 1;
+	fi;
+	return call getsumton(n-1) + n;
+};
+
+{
+    let input <- call inputnum();
+    let myvar <- call getsumton(input);
+    call outputnewline();
+    call outputnum(input);
+    call outputnewline();
+    call outputnum(myvar);
+    call outputnewline();
 }.
 
   
