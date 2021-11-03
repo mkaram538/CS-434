@@ -132,10 +132,12 @@ public class Compiler
 			if (scanner.sym != 35) {
 				printError(scanner.sym);
 			}
+			scanner.Next();
 			return factorNumReg;
 		} else if (scanner.sym == 60) {
 			factorNumReg[0] = 1;
 			factorNumReg[1] = scanner.val;
+			scanner.Next();
 			return factorNumReg;
 		} else if (scanner.sym == 61) {
 			if (isFunction) {
@@ -148,13 +150,18 @@ public class Compiler
 			factorNumReg[1] = factorRegister;
 			bufPointer++;
 			nextRegister++;
+			scanner.Next();
 			return factorNumReg;
 		} else if (scanner.sym == 100) {
 			factorRegister = funcCallCheck(activated, isFunction);
+			System.out.println(scanner.sym);
+			factorNumReg[1] = factorRegister;
+			return factorNumReg;
 		} else {
 			printError(scanner.sym);
 		}
 		factorNumReg[1] = factorRegister;
+		scanner.Next();
 		return factorNumReg;
 	}
 
@@ -164,9 +171,7 @@ public class Compiler
 		int[] leftFactorRegister = factorCheck(activated, isFunction);
 		boolean multiplying;
 		// Needed for function calls
-		if (scanner.sym != 70) {
-			scanner.Next();
-		}
+
 		if (scanner.sym != 1 && scanner.sym != 2) {
 			return leftFactorRegister;
 		}
@@ -225,6 +230,7 @@ public class Compiler
 			return leftExpressionRegister;
 		}
 		while (scanner.sym == 11 || scanner.sym == 12) {
+
 			adding = scanner.sym == 11;
 			scanner.Next();
 			int[] rightExpressionRegister = termCheck(activated, isFunction);
@@ -243,6 +249,7 @@ public class Compiler
 						buf[bufPointer] = DLX.assemble(1, expressionRegister, leftExpressionRegister[1], rightExpressionRegister[1]);
 					}
 				} else if (rightExpressionRegister[0] == 1) {
+					System.out.println("1");
 					if (adding) {
 						buf[bufPointer] = DLX.assemble(16, expressionRegister, leftExpressionRegister[1], rightExpressionRegister[1]);
 					} else {
@@ -324,6 +331,7 @@ public class Compiler
 			if (scanner.sym == 50) {
 				expect(")");
 			}
+			scanner.Next();
 			if (activated) {
 				int inputRegister = nextRegister;
 				buf[bufPointer] = DLX.assemble(50, inputRegister);
@@ -331,6 +339,7 @@ public class Compiler
 				nextRegister++;
 				return inputRegister;
 			}
+
 			return 0;
 		}
 
@@ -408,6 +417,7 @@ public class Compiler
 				printError(scanner.sym);
 			}
 		}
+
 		int funcLocation = startingPc.get(funcType) * 4;
 		buf[bufPointer] = DLX.assemble(48, funcLocation);
 		bufPointer++;
@@ -454,6 +464,7 @@ public class Compiler
 		if (scanner.sym != 82) {
 			printError(scanner.sym);
 		}
+		System.out.println("Made it here");
 		scanner.Next();
 	}
 
@@ -617,6 +628,8 @@ public class Compiler
 		bufPointer++;
 		buf[bufPointer] = DLX.assemble(49, 31);
 		bufPointer++;
+
+		System.out.println("Makes it out the function");
 	}
 
 	public void formalParamCheck() {
@@ -708,10 +721,10 @@ public class Compiler
 		buf[bufPointer] = DLX.assemble(49, 0);
 		bufPointer++;
 
-//		for (int i = 0; i < bufPointer; i++) {
-//			DLX.disassem(buf[i]);
-//			System.out.println("CD = " + i + " op = " + DLX.op + " a = " + DLX.a + " b = " + DLX.b + " c = " + DLX.c);
-//		}
+		for (int i = 0; i < bufPointer; i++) {
+			DLX.disassem(buf[i]);
+			System.out.println("CD = " + i + " op = " + DLX.op + " a = " + DLX.a + " b = " + DLX.b + " c = " + DLX.c);
+		}
 
 
 	}
