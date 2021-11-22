@@ -256,7 +256,7 @@ public class Scanner {
         tokenMap.put("while", 102);
         tokenMap.put("return", 103);
         tokenMap.put("var", 110);
-        // tokenMap.put("array", 111);
+        tokenMap.put("array", 111);
         tokenMap.put("function", 112);
         tokenMap.put("procedure", 113);
         tokenMap.put("{", 150);

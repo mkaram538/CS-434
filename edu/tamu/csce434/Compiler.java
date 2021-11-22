@@ -2,6 +2,7 @@ package edu.tamu.csce434;
 
 
 import java.io.Console;
+import java.util.Vector;
 
 public class Compiler
 {
@@ -15,6 +16,9 @@ public class Compiler
 	java.util.Vector<Integer> whileCondLocation = new java.util.Vector<>();
 	java.util.Vector<Integer> paramReg = new java.util.Vector<>();
 	java.util.Vector<String> paramName = new java.util.Vector<>();
+	java.util.Vector<Integer> returnLocation = new java.util.Vector<>();
+	java.util.Vector<java.util.Vector<Integer>> registersUsed = new java.util.Vector<>();
+	java.util.Vector<Integer> currentRegisters = new java.util.Vector<>();
 	int funcLocation;
 	int buf[] = new int[3000];
 	int bufPointer = 0;
@@ -34,8 +38,12 @@ public class Compiler
 		return java.util.Arrays.copyOf(buf, bufPointer);
 	}
 
-	private void printError(int i) {
-		System.out.println("error");
+	private void printError(int p) {
+//		for (int i = 0; i < bufPointer; i++) {
+//			DLX.disassem(buf[i]);
+//			System.out.println("CD = " + i + " op = " + DLX.op + " a = " + DLX.a + " b = " + DLX.b + " c = " + DLX.c);
+//		}
+		System.out.println("error: " + p);
 		System.exit(0);
 	}
 
@@ -51,7 +59,7 @@ public class Compiler
 		if (accept(s))
 			return;
 
-		printError(scanner.sym);
+		printError(1);
 	}
 
 	// Implement this function to start parsing your input file
@@ -63,13 +71,12 @@ public class Compiler
 
 	public void relOpCheck() {
 		if (scanner.sym < 20 || scanner.sym > 25) {
-			printError(scanner.sym);
+			printError(2);
 		}
 	}
 
 	public void relOperation(int statementType, int leftRegister[], int relationType, int rightRegister[]) {
 		int relOpRegister = nextRegister;
-		int operationLocation = bufPointer;
 		if (leftRegister[0] == 1 & rightRegister[0] == 1) {
 			int comparison = leftRegister[1] - rightRegister[1];
 			buf[bufPointer] = DLX.assemble(16, relOpRegister, 0, comparison);
@@ -78,6 +85,7 @@ public class Compiler
 		} else {
 			buf[bufPointer] = DLX.assemble(1, relOpRegister, leftRegister[1], rightRegister[1]);
 		}
+		if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 		bufPointer++;
 		nextRegister++;
 
@@ -85,7 +93,6 @@ public class Compiler
 			ifCondLocation.add(0, bufPointer);
 		} else {
 			whileCondLocation.add(0, bufPointer);
-			whileCondLocation.add(0, operationLocation);
 		}
 
 		switch (relationType) {
@@ -116,21 +123,28 @@ public class Compiler
 		}
 	}
 
-	public int[] factorCheck(boolean activated, boolean isFunction) {
+	public int[] designatorCheck(boolean isFunction) {
+		int[] designatorReg = new int[2];
+		
+	}
+
+	public int[] factorCheck(boolean isFunction) {
 		int[] factorNumReg = new int[2];
 		int factorRegister = nextRegister;
+		if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 		if (scanner.sym == 50) {
 			scanner.Next();
-			factorNumReg = expressionCheck(activated, isFunction);
+			factorNumReg = expressionCheck(isFunction);
 			if (factorNumReg[0] == 1) {
 				buf[bufPointer] = DLX.assemble(16, factorRegister, 0, factorNumReg[1]);
 				factorNumReg[0] = 0;
 				factorNumReg[1] = factorRegister;
 				bufPointer++;
+				if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 				nextRegister++;
 			}
 			if (scanner.sym != 35) {
-				printError(scanner.sym);
+				printError(3);
 			}
 			scanner.Next();
 			return factorNumReg;
@@ -149,26 +163,27 @@ public class Compiler
 			}
 			factorNumReg[1] = factorRegister;
 			bufPointer++;
+			if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 			nextRegister++;
 			scanner.Next();
 			return factorNumReg;
 		} else if (scanner.sym == 100) {
-			factorRegister = funcCallCheck(activated, isFunction);
-			System.out.println(scanner.sym);
+			factorRegister = funcCallCheck(isFunction);
 			factorNumReg[1] = factorRegister;
 			return factorNumReg;
 		} else {
-			printError(scanner.sym);
+			printError(4);
 		}
 		factorNumReg[1] = factorRegister;
 		scanner.Next();
 		return factorNumReg;
 	}
 
-	public int[] termCheck(boolean activated, boolean isFunction) {
+	public int[] termCheck(boolean isFunction) {
 		int[] termNumReg;
 		int termRegister;
-		int[] leftFactorRegister = factorCheck(activated, isFunction);
+		if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
+		int[] leftFactorRegister = factorCheck(isFunction);
 		boolean multiplying;
 		// Needed for function calls
 
@@ -178,7 +193,7 @@ public class Compiler
 		while (scanner.sym == 1 || scanner.sym == 2) {
 			multiplying = scanner.sym == 1;
 			scanner.Next();
-			int[] rightFactorRegister = factorCheck(activated, isFunction);
+			int[] rightFactorRegister = factorCheck(isFunction);
 			termRegister = nextRegister;
 			if (leftFactorRegister[0] == 1 & rightFactorRegister[0] == 1) {
 				if (multiplying) {
@@ -192,6 +207,7 @@ public class Compiler
 						buf[bufPointer] = DLX.assemble(18, termRegister, rightFactorRegister[1], leftFactorRegister[1]);
 					} else {
 						buf[bufPointer] = DLX.assemble(16, termRegister, 0, leftFactorRegister[1]);
+						if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 						nextRegister++;
 						bufPointer++;
 						buf[bufPointer] = DLX.assemble(3, nextRegister, termRegister, rightFactorRegister[1]);
@@ -215,26 +231,28 @@ public class Compiler
 				bufPointer++;
 				nextRegister++;
 			}
-			scanner.Next();
+			if (scanner.sym != 70) {
+				scanner.Next();
+			}
 		}
 		termNumReg = leftFactorRegister;
 		return termNumReg;
 	}
 
-	public int[] expressionCheck(boolean activated, boolean isFunction) {
+	public int[] expressionCheck(boolean isFunction) {
 		int[] exprNumReg;
 		int expressionRegister;
-		int[] leftExpressionRegister = termCheck(activated, isFunction);
+		int[] leftExpressionRegister = termCheck(isFunction);
 		boolean adding;
 		if (scanner.sym != 11 && scanner.sym != 12) {
 			return leftExpressionRegister;
 		}
 		while (scanner.sym == 11 || scanner.sym == 12) {
-
 			adding = scanner.sym == 11;
 			scanner.Next();
-			int[] rightExpressionRegister = termCheck(activated, isFunction);
+			int[] rightExpressionRegister = termCheck(isFunction);
 			expressionRegister = nextRegister;
+			if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 			if (leftExpressionRegister[0] == 1 & rightExpressionRegister[0] == 1) {
 				if (adding) {
 					leftExpressionRegister[1] = leftExpressionRegister[1] + rightExpressionRegister[1];
@@ -249,7 +267,6 @@ public class Compiler
 						buf[bufPointer] = DLX.assemble(1, expressionRegister, leftExpressionRegister[1], rightExpressionRegister[1]);
 					}
 				} else if (rightExpressionRegister[0] == 1) {
-					System.out.println("1");
 					if (adding) {
 						buf[bufPointer] = DLX.assemble(16, expressionRegister, leftExpressionRegister[1], rightExpressionRegister[1]);
 					} else {
@@ -272,23 +289,23 @@ public class Compiler
 		return exprNumReg;
 	}
 
-	public void relationCheck(int statementType, boolean activated, boolean isFunction) {
+	public void relationCheck(int statementType, boolean isFunction) {
 		int[] leftRegister;
 		int relationType;
 		int[] rightRegister;
 
-		leftRegister = expressionCheck(activated, isFunction);
+		leftRegister = expressionCheck(isFunction);
 		relationType = scanner.sym;
 		relOpCheck();
 		scanner.Next();
-		rightRegister = expressionCheck(activated, isFunction);
+		rightRegister = expressionCheck(isFunction);
 		relOperation(statementType, leftRegister, relationType, rightRegister);
 	}
 
-	public void assignmentCheck(boolean activated, boolean isFunction) {
+	public void assignmentCheck(boolean isFunction) {
 		scanner.Next();
 		if (scanner.sym != 61) {
-			printError(scanner.sym);
+			printError(5);
 		}
 		int offset;
 		String currentIdent = scanner.Id2String(scanner.id);
@@ -299,30 +316,31 @@ public class Compiler
 		}
 		expect("<-");
 		scanner.Next();
-		int[] expressionRegister = expressionCheck(activated, isFunction);
-		if (activated) {
-			if (expressionRegister[0] == 1) {
-				buf[bufPointer] = DLX.assemble(16, nextRegister, 0, expressionRegister[1]);
-				bufPointer++;
-				if (isFunction) {
-					buf[bufPointer] = DLX.assemble(36, nextRegister, 28, offset);
-				} else {
-					buf[bufPointer] = DLX.assemble(36, nextRegister, 30, offset);
-				}
-				bufPointer++;
-				nextRegister++;
-				return;
-			}
-			if (isFunction) {
-				buf[bufPointer] = DLX.assemble(36, expressionRegister[1], 28, offset);
-			} else {
-				buf[bufPointer] = DLX.assemble(36, expressionRegister[1], 30, offset);
-			}
+		int[] expressionRegister = expressionCheck(isFunction);
+
+		if (expressionRegister[0] == 1) {
+			buf[bufPointer] = DLX.assemble(16, nextRegister, 0, expressionRegister[1]);
 			bufPointer++;
+			if (isFunction) {
+				buf[bufPointer] = DLX.assemble(36, nextRegister, 28, offset);
+			} else {
+				buf[bufPointer] = DLX.assemble(36, nextRegister, 30, offset);
+			}
+			if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
+			bufPointer++;
+			nextRegister++;
+			return;
 		}
+		if (isFunction) {
+			buf[bufPointer] = DLX.assemble(36, expressionRegister[1], 28, offset);
+		} else {
+			buf[bufPointer] = DLX.assemble(36, expressionRegister[1], 30, offset);
+		}
+		bufPointer++;
+
 	}
 
-	public int predefinedFunc(boolean activated, boolean isFunction) {
+	public int predefinedFunc(boolean isFunction) {
 		String funcType = scanner.Id2String(scanner.id);
 		int[] funcValueRegister = new int[2];
 
@@ -332,24 +350,21 @@ public class Compiler
 				expect(")");
 			}
 			scanner.Next();
-			if (activated) {
-				int inputRegister = nextRegister;
-				buf[bufPointer] = DLX.assemble(50, inputRegister);
-				bufPointer++;
-				nextRegister++;
-				return inputRegister;
-			}
-
-			return 0;
+			int inputRegister = nextRegister;
+			buf[bufPointer] = DLX.assemble(50, inputRegister);
+			if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
+			bufPointer++;
+			nextRegister++;
+			return inputRegister;
 		}
 
 		expect("(");
 		scanner.Next();
 		if (scanner.sym != 35) {
 
-			funcValueRegister = expressionCheck(activated, isFunction);
+			funcValueRegister = expressionCheck(isFunction);
 			if (scanner.sym != 35) {
-				printError(scanner.sym);
+				printError(6);
 			}
 		}
 
@@ -357,6 +372,7 @@ public class Compiler
 			if (funcValueRegister[0] == 1) {
 				buf[bufPointer] = DLX.assemble(16, nextRegister, 0, funcValueRegister[1]);
 				funcValueRegister[1] = nextRegister;
+				if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 				bufPointer++;
 				nextRegister++;
 			}
@@ -369,29 +385,34 @@ public class Compiler
 		return 0;
 	}
 
-	public int funcCallCheck(boolean activated, boolean isFunction) {
+	public int funcCallCheck(boolean isFunction) {
 
 		scanner.Next();
+
 		if (scanner.sym != 61) {
-			printError(scanner.sym);
+			printError(7);
 		}
 		String funcType = scanner.Id2String(scanner.id);
 		int[] funcValueRegister;
 
 		if (funcType.equals("inputnum") || funcType.equals("outputnum") || funcType.equals("outputnewline")) {
-			return predefinedFunc(activated, isFunction);
+			return predefinedFunc(isFunction);
 		}
-		int currentRegs = nextRegister;
+
 		nextRegister = 1;
 		// Store all values in current registers
-		for (int i = 1; i < currentRegs; i++) {
-			buf[bufPointer] = DLX.assemble(38, i, 29, -4);
+		for (int i = 0; i < currentRegisters.size(); i++) {
+			buf[bufPointer] = DLX.assemble(38, currentRegisters.elementAt(i), 29, -4);
+			bufPointer++;
 		}
+
+		registersUsed.add(currentRegisters);
+		currentRegisters = new Vector<>();
 
 		expect("(");
 		scanner.Next();
 		if (scanner.sym != 35) {
-			funcValueRegister = expressionCheck(activated, isFunction);
+			funcValueRegister = expressionCheck(isFunction);
 			if (funcValueRegister[0] == 1) {
 				buf[bufPointer] = DLX.assemble(16, nextRegister, 0, funcValueRegister[1]);
 				funcValueRegister[1] = nextRegister;
@@ -399,22 +420,24 @@ public class Compiler
 
 			}
 			buf[bufPointer] = DLX.assemble(38, funcValueRegister[1], 29, -4);
+			if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 			bufPointer++;
 			nextRegister++;
 			while (scanner.sym == 31) {
 				scanner.Next();
-				funcValueRegister = expressionCheck(activated, isFunction);
+				funcValueRegister = expressionCheck(isFunction);
 				if (funcValueRegister[0] == 1) {
 					buf[bufPointer] = DLX.assemble(16, nextRegister, 0, funcValueRegister[1]);
 					funcValueRegister[1] = nextRegister;
 					bufPointer++;
 				}
 				buf[bufPointer] = DLX.assemble(38, funcValueRegister[1], 29, -4);
+				if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 				bufPointer++;
 				nextRegister++;
 			}
 			if (scanner.sym != 35) {
-				printError(scanner.sym);
+				printError(8);
 			}
 		}
 
@@ -423,24 +446,29 @@ public class Compiler
 		bufPointer++;
 
 		scanner.Next();
-		for (int i = currentRegs - 1; i > 0; i--) {
-			buf[bufPointer] = DLX.assemble(38, i, 29, 4);
+		currentRegisters = registersUsed.remove(0);
+		for (int i = currentRegisters.size() - 1; i >= 0; i--) {
+			buf[bufPointer] = DLX.assemble(34, currentRegisters.elementAt(i), 29, 4);
+			bufPointer++;
 		}
-		nextRegister = currentRegs;
+
+		nextRegister = currentRegisters.size() > 0 ? currentRegisters.lastElement() + 1 : 1;
+
 		buf[bufPointer] = DLX.assemble(32, nextRegister, 30, -4);
+		if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 		bufPointer++;
 		nextRegister++;
-		return currentRegs;
+		return currentRegisters.lastElement();
 	}
 
-	public void ifStatementCheck(boolean activated, boolean isFunction) {
+	public void ifStatementCheck(boolean isFunction) {
 		scanner.Next();
-		relationCheck(0, activated, isFunction);
+		relationCheck(0, isFunction);
 		if (scanner.sym != 41) {
-			printError(scanner.sym);
+			printError(9);
 		}
 		scanner.Next();
-		statSequenceCheck(true, isFunction);
+		statSequenceCheck(isFunction);
 
 		buf[bufPointer] = DLX.assemble(40, 0, 1);
 		elseCondLocation.add(0, bufPointer);
@@ -454,7 +482,7 @@ public class Compiler
 
 		if (scanner.sym == 90) {
 			scanner.Next();
-			statSequenceCheck(true, isFunction);
+			statSequenceCheck(isFunction);
 		}
 
 		int elseLocation = elseCondLocation.remove(0);
@@ -462,22 +490,20 @@ public class Compiler
 		buf[elseLocation] = DLX.assemble(40, 0, bufPointer - elseLocation);
 
 		if (scanner.sym != 82) {
-			printError(scanner.sym);
+			printError(10);
 		}
-		System.out.println("Made it here");
 		scanner.Next();
 	}
 
-	public void whileStatementCheck(boolean activated, boolean isFunction) {
+	public void whileStatementCheck(boolean isFunction) {
 		scanner.Next();
-		relationCheck(1, activated, isFunction);
+		int conditionLocation = bufPointer;
+		relationCheck(1, isFunction);
 		if (scanner.sym != 42) {
-			printError(scanner.sym);
+			printError(11);
 		}
 		scanner.Next();
-		statSequenceCheck(true, isFunction);
-
-		int conditionLocation = whileCondLocation.remove(0);
+		statSequenceCheck(isFunction);
 
 		buf[bufPointer] = DLX.assemble(40, 0, conditionLocation - bufPointer);
 		bufPointer++;
@@ -489,53 +515,58 @@ public class Compiler
 		buf[whileLocation] = DLX.assemble(DLX.op, DLX.a, bufPointer - whileLocation);
 
 		if (scanner.sym != 81) {
-			printError(scanner.sym);
+			printError(12);
 		}
 		scanner.Next();
 	}
 
-	public void returnStatementCheck(boolean activated, boolean isFunction) {
+	public void returnStatementCheck(boolean isFunction) {
 		scanner.Next();
 		if (scanner.sym == 70) {
 			scanner.Next();
 		}
 		else {
-			int[] expressionRegister = expressionCheck(activated, isFunction);
+			int[] expressionRegister = expressionCheck(isFunction);
 			if (expressionRegister[0] == 1) {
 				buf[bufPointer] = DLX.assemble(16, nextRegister, 0, expressionRegister[1]);
 				expressionRegister[1] = nextRegister;
 				bufPointer++;
 			}
 			buf[bufPointer] = DLX.assemble(36, expressionRegister[1], 30, -4);
+			if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 			bufPointer++;
 			nextRegister++;
 		}
+		// Branches to the end of the function in case of returns before end of function
+		buf[bufPointer] = DLX.assemble(40, 0, 0);
+		returnLocation.add(bufPointer);
+		bufPointer++;
 	}
 
-	public void statementCheck(boolean activated, boolean isFunction) {
+	public void statementCheck(boolean isFunction) {
 		if (scanner.sym == 77) {
-			assignmentCheck(activated, isFunction);
+			assignmentCheck(isFunction);
 		} else if (scanner.sym == 100) {
-			funcCallCheck(activated, isFunction);
+			funcCallCheck(isFunction);
 		} else if (scanner.sym == 101) {
-			ifStatementCheck(activated, isFunction);
+			ifStatementCheck(isFunction);
 		} else if (scanner.sym == 102) {
-			whileStatementCheck(activated, isFunction);
+			whileStatementCheck(isFunction);
 		} else if (scanner.sym == 103 && isFunction) {
-			returnStatementCheck(activated, true);
+			returnStatementCheck(true);
 		}
 		else {
-			printError(scanner.sym);
+			printError(13);
 		}
 	}
 
-	public void statSequenceCheck(boolean activated, boolean isFunction) {
-		statementCheck(activated, isFunction);
+	public void statSequenceCheck(boolean isFunction) {
+		statementCheck(isFunction);
 		while (scanner.sym == 70) {
 
 			scanner.Next();
 			if (isStatCheck()) {
-				statementCheck(activated, isFunction);
+				statementCheck(isFunction);
 
 			} else {
 				return;
@@ -547,17 +578,53 @@ public class Compiler
 		return (scanner.sym == 77 || scanner.sym == 100 || scanner.sym == 101 || scanner.sym == 102 || scanner.sym == 103);
 	}
 
+	public void typeDeclCheck(boolean isFunction) {
+		if (scanner.sym == 110) {
+			varDeclCheck(isFunction);
+		} else if (scanner.sym == 111){
+			scanner.Next();
+			if (scanner.sym != 32) {
+				printError(30);
+			}
+			scanner.Next();
+			if (scanner.sym != 60) {
+				printError(31);
+			}
+			scanner.Next();
+			if (scanner.sym != 34) {
+				printError(32);
+			}
+			scanner.Next();
+			if (scanner.sym != 32) {
+				return;
+			}
+			else {
+				scanner.Next();
+				if (scanner.sym != 60) {
+					printError(33);
+				}
+				scanner.Next();
+				if (scanner.sym != 34) {
+					printError(34);
+				}
+				scanner.Next();
+				return;
+			}
+
+		}
+	}
+
 	public void varDeclCheck(boolean isFunction) {
 		currentGlobal = 0;
-		scanner.Next();
+		typeDeclCheck(isFunction);
 		if (scanner.sym != 61) {
-			printError(scanner.sym);
+			printError(14);
 		}
 
 		String currentIdent = scanner.Id2String(scanner.id);
 		if (isFunction) {
-			functionOffsetMap.put(currentIdent, numParams * -4);
-			buf[bufPointer] = DLX.assemble(36, 0, 28, numParams * -4);
+			functionOffsetMap.put(currentIdent, (numParams + 1) * -4);
+			buf[bufPointer] = DLX.assemble(36, 0, 28, (numParams + 1) * -4);
 		} else {
 			registerMap.put(currentIdent, currentGlobal);
 			buf[bufPointer] = DLX.assemble(36, 0, 30, currentGlobal);
@@ -569,12 +636,12 @@ public class Compiler
 		while (scanner.sym == 31) {
 			scanner.Next();
 			if (scanner.sym != 61) {
-				printError(scanner.sym);
+				printError(15);
 			}
 			currentIdent = scanner.Id2String(scanner.id);
 			if (isFunction) {
-				functionOffsetMap.put(currentIdent, numParams * -4);
-				buf[bufPointer] = DLX.assemble(36, 0, 28, numParams * -4);
+				functionOffsetMap.put(currentIdent, (numParams + 1) * -4);
+				buf[bufPointer] = DLX.assemble(36, 0, 28, (numParams + 1) * -4);
 			} else {
 				registerMap.put(currentIdent, currentGlobal);
 				buf[bufPointer] = DLX.assemble(36, 0, 30, currentGlobal);
@@ -586,14 +653,14 @@ public class Compiler
 		}
 
 		if (scanner.sym != 70) {
-			printError(scanner.sym);
+			printError(16);
 		}
 	}
 
 	public void funcDeclCheck() {
 		scanner.Next();
 		if (scanner.sym != 61) {
-			printError(scanner.sym);
+			printError(17);
 		}
 		String funcType = scanner.Id2String(scanner.id);
 		startingPc.put(funcType, bufPointer);
@@ -608,18 +675,19 @@ public class Compiler
 		buf[bufPointer] = DLX.assemble(16, 28, 29, 0);
 		bufPointer++;
 
-		for (int i = 0; i < paramReg.size(); i++) {
-			buf[bufPointer] = DLX.assemble(36, paramReg.remove(0), 28, i * -4);
+		for (int i = paramReg.size() - 1; i >= 0; i--) {
+			buf[bufPointer] = DLX.assemble(36, paramReg.elementAt(paramReg.size() - 1 - i), 28, (i + 1) * -4);
 			bufPointer++;
-			functionOffsetMap.put(paramName.remove(0), i * -4);
+			functionOffsetMap.put(paramName.elementAt(i), (i + 1) * -4);
 		}
+		paramReg.clear();
+		paramName.clear();
 
 		scanner.Next();
 		funcBodyCheck();
-
 		scanner.Next();
 		if (scanner.sym != 70) {
-			printError(scanner.sym);
+			printError(18);
 		}
 
 		buf[bufPointer] = DLX.assemble(34, 28, 29, 4);
@@ -629,21 +697,22 @@ public class Compiler
 		buf[bufPointer] = DLX.assemble(49, 31);
 		bufPointer++;
 
-		System.out.println("Makes it out the function");
+		nextRegister = 1;
 	}
 
 	public void formalParamCheck() {
 		numParams = 0;
 		if (scanner.sym != 50) {
-			printError(scanner.sym);
+			printError(19);
 		}
 		scanner.Next();
 		while (scanner.sym != 35) {
 
 			if (scanner.sym != 61) {
-				printError(scanner.sym);
+				printError(20);
 			}
 			buf[bufPointer] = DLX.assemble(34, nextRegister, 29, 4);
+			if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 			bufPointer++;
 			paramReg.add(0, nextRegister);
 			paramName.add(0, scanner.Id2String(scanner.id));
@@ -658,7 +727,9 @@ public class Compiler
 	}
 
 	public void funcBodyCheck() {
-		if (scanner.sym == 110) {
+
+		if (scanner.sym == 110 || scanner.sym == 111) {
+
 			varDeclCheck(true);
 			scanner.Next();
 		}
@@ -667,23 +738,33 @@ public class Compiler
 		bufPointer++;
 
 		if (scanner.sym != 150) {
-			printError(scanner.sym);
+			printError(21);
 		}
 		scanner.Next();
 		if (isStatCheck()) {
-			statSequenceCheck(true, true);
+			statSequenceCheck(true);
 		}
 		if (scanner.sym != 80) {
-			printError(scanner.sym);
+			printError(22);
 		}
 
+		int returnInstruction;
+		// Going back and setting branch location for returns here
+		for (int i = 0; i < returnLocation.size(); i++) {
+			returnInstruction = returnLocation.elementAt(i);
+			DLX.disassem(buf[returnInstruction]);
+			buf[returnInstruction] = DLX.assemble(DLX.op, DLX.a, bufPointer - returnInstruction);
+		}
+		returnLocation.clear();
+
+		// Begins restoring pointers post function call
 		buf[bufPointer] = DLX.assemble(16, 29, 29, localVarSize);
 		bufPointer++;
 	}
 
 	public void computationCheck() {
 		if (scanner.sym != 200) {
-			printError(scanner.sym);
+			printError(23);
 		}
 		scanner.Next();
 
@@ -710,10 +791,11 @@ public class Compiler
 			buf[funcLocation] = DLX.assemble(DLX.op, DLX.a, bufPointer - funcLocation);
 		}
 		if (scanner.sym != 150) {
-			printError(scanner.sym);
+			printError(24);
 		}
+		currentRegisters.clear();
 		scanner.Next();
-		statSequenceCheck(true, false);
+		statSequenceCheck(false);
 		if (scanner.sym != 80) {
 			printError(scanner.sym);
 		}
@@ -721,10 +803,11 @@ public class Compiler
 		buf[bufPointer] = DLX.assemble(49, 0);
 		bufPointer++;
 
-		for (int i = 0; i < bufPointer; i++) {
-			DLX.disassem(buf[i]);
-			System.out.println("CD = " + i + " op = " + DLX.op + " a = " + DLX.a + " b = " + DLX.b + " c = " + DLX.c);
-		}
+//		for (int i = 0; i < bufPointer; i++) {
+//			DLX.disassem(buf[i]);
+//			System.out.println("CD = " + i + " op = " + DLX.op + " a = " + DLX.a + " b = " + DLX.b + " c = " + DLX.c);
+//		}
+//		System.out.println("Num Instructions: " + bufPointer);
 
 
 	}
