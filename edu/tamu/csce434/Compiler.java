@@ -25,6 +25,8 @@ public class Compiler
 	public java.util.Map<String, Integer> registerMap = new java.util.HashMap<>();
 	public java.util.Map<String, Integer> functionOffsetMap = new java.util.HashMap<>();
 	public java.util.Map<String, Integer> startingPc = new java.util.HashMap<>();
+	public java.util.Map<String, Integer> arrayRowSize = new java.util.HashMap<>();
+	public java.util.Map<String, Integer> arrayColumnSize = new java.util.HashMap<>();
 
 	// Constructor of your Compiler
 	public Compiler(String args) {
@@ -124,8 +126,71 @@ public class Compiler
 	}
 
 	public int[] designatorCheck(boolean isFunction) {
-		int[] designatorReg = new int[2];
-		
+		int[] designatorNumReg = new int[2];
+		int designatorRegister = nextRegister;
+		int offset;
+		String currentIdent = scanner.Id2String(scanner.id);
+
+		if (isFunction) {
+			offset = functionOffsetMap.get(currentIdent);
+		} else {
+			offset = registerMap.get(currentIdent);
+		}
+		designatorNumReg[1] = designatorRegister;
+
+		scanner.Next();
+		if (scanner.sym == 32) {
+			int arrayIndex;
+			scanner.Next();
+			int[] firstIndex = expressionCheck(isFunction);
+			int firstRegister = firstIndex[1];
+			if (firstIndex[0] == 1) {
+				buf[bufPointer] = DLX.assemble(16, nextRegister, 0, firstIndex[1]);
+				firstRegister = nextRegister;
+				bufPointer++;
+				nextRegister++;
+			}
+			if (scanner.sym != 34) {
+				printError(40);
+			}
+			scanner.Next();
+			if (scanner.sym == 32) {
+				scanner.Next();
+				int[] secondIndex = expressionCheck(isFunction);
+				int secondRegister = secondIndex[1];
+				if (secondIndex[0] == 1) {
+					buf[bufPointer] = DLX.assemble(16, nextRegister, 0, secondIndex[1]);
+					secondRegister = nextRegister;
+					bufPointer++;
+					nextRegister++;
+				}
+
+				buf[bufPointer] = DLX.assemble(14, secondRegister, arrayRowSize.get(currentIdent));
+				bufPointer++;
+				buf[bufPointer] = DLX.assemble(14, firstRegister, arrayColumnSize.get(currentIdent));
+				bufPointer++;
+
+				arrayIndex = 
+
+				if (scanner.sym != 34) {
+					printError(40);
+				}
+				scanner.Next();
+			} else {
+				buf[bufPointer] = DLX.assemble(14, firstRegister, arrayRowSize.get(currentIdent));
+				bufPointer++;
+			}
+		} else {
+			if (isFunction) {
+				buf[bufPointer] = DLX.assemble(32, designatorRegister, 28, offset);
+			} else {
+				buf[bufPointer] = DLX.assemble(32, designatorRegister, 30, offset);
+			}
+			bufPointer++;
+			if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
+			nextRegister++;
+		}
+		return designatorNumReg;
 	}
 
 	public int[] factorCheck(boolean isFunction) {
@@ -154,18 +219,7 @@ public class Compiler
 			scanner.Next();
 			return factorNumReg;
 		} else if (scanner.sym == 61) {
-			if (isFunction) {
-				int offset = functionOffsetMap.get(scanner.Id2String(scanner.id));
-				buf[bufPointer] = DLX.assemble(32, factorRegister, 28, offset);
-			} else {
-				int offset = registerMap.get(scanner.Id2String(scanner.id));
-				buf[bufPointer] = DLX.assemble(32, factorRegister, 30, offset);
-			}
-			factorNumReg[1] = factorRegister;
-			bufPointer++;
-			if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
-			nextRegister++;
-			scanner.Next();
+			factorNumReg = designatorCheck(isFunction);
 			return factorNumReg;
 		} else if (scanner.sym == 100) {
 			factorRegister = funcCallCheck(isFunction);
@@ -578,10 +632,12 @@ public class Compiler
 		return (scanner.sym == 77 || scanner.sym == 100 || scanner.sym == 101 || scanner.sym == 102 || scanner.sym == 103);
 	}
 
-	public void typeDeclCheck(boolean isFunction) {
+	public int[] typeDeclCheck(boolean isFunction) {
+		int[] typeSize = new int[3];
 		if (scanner.sym == 110) {
 			varDeclCheck(isFunction);
 		} else if (scanner.sym == 111){
+			int firstSize;
 			scanner.Next();
 			if (scanner.sym != 32) {
 				printError(30);
@@ -590,48 +646,96 @@ public class Compiler
 			if (scanner.sym != 60) {
 				printError(31);
 			}
+			firstSize = scanner.val;
+			typeSize[1] = firstSize;
 			scanner.Next();
 			if (scanner.sym != 34) {
 				printError(32);
 			}
 			scanner.Next();
-			if (scanner.sym != 32) {
-				return;
-			}
-			else {
+			if (scanner.sym == 32) {
+				int secondSize;
 				scanner.Next();
 				if (scanner.sym != 60) {
 					printError(33);
 				}
+				secondSize = scanner.val;
+				typeSize[2] = secondSize;
 				scanner.Next();
 				if (scanner.sym != 34) {
 					printError(34);
 				}
 				scanner.Next();
-				return;
+				typeSize[0] = 2;
+			} else {
+				typeSize[0] = 1;
 			}
 
 		}
+		return typeSize;
 	}
 
 	public void varDeclCheck(boolean isFunction) {
 		currentGlobal = 0;
-		typeDeclCheck(isFunction);
+		int[] varTypeSize = typeDeclCheck(isFunction);
 		if (scanner.sym != 61) {
 			printError(14);
 		}
+		int arraySize;
 
 		String currentIdent = scanner.Id2String(scanner.id);
-		if (isFunction) {
-			functionOffsetMap.put(currentIdent, (numParams + 1) * -4);
-			buf[bufPointer] = DLX.assemble(36, 0, 28, (numParams + 1) * -4);
+		if (varTypeSize[0] == 0) {
+			if (isFunction) {
+				functionOffsetMap.put(currentIdent, (numParams + 1) * -4);
+				buf[bufPointer] = DLX.assemble(36, 0, 28, (numParams + 1) * -4);
+			} else {
+				registerMap.put(currentIdent, currentGlobal);
+				buf[bufPointer] = DLX.assemble(36, 0, 30, currentGlobal);
+			}
+			currentGlobal -= 4;
+			numParams++;
+		} else if (varTypeSize[0] == 1) {
+			buf[bufPointer] = DLX.assemble(16, nextRegister, 0, varTypeSize[1]);
+			arrayRowSize.put(currentIdent, nextRegister);
+			bufPointer++;
+			nextRegister++;
+
+			arraySize = varTypeSize[1];
+			if (isFunction) {
+				functionOffsetMap.put(currentIdent, (numParams + 1) * -4);
+				buf[bufPointer] = DLX.assemble(36, 0, 28, (numParams + 1) * -4);
+			} else {
+				registerMap.put(currentIdent, currentGlobal);
+				buf[bufPointer] = DLX.assemble(36, 0, 30, currentGlobal);
+			}
+			numParams += arraySize;
+			currentGlobal -= arraySize * 4;
 		} else {
-			registerMap.put(currentIdent, currentGlobal);
-			buf[bufPointer] = DLX.assemble(36, 0, 30, currentGlobal);
+			buf[bufPointer] = DLX.assemble(16, nextRegister, 0, varTypeSize[2]);
+			arrayRowSize.put(currentIdent, nextRegister);
+			bufPointer++;
+			nextRegister++;
+
+			buf[bufPointer] = DLX.assemble(16, nextRegister, 0, varTypeSize[1]);
+			arrayColumnSize.put(currentIdent, nextRegister);
+			bufPointer++;
+			nextRegister++;
+
+			arraySize = varTypeSize[2] * varTypeSize[1];
+			if (isFunction) {
+				functionOffsetMap.put(currentIdent, (numParams + 1) * -4);
+				buf[bufPointer] = DLX.assemble(36, 0, 28, (numParams + 1) * -4);
+			} else {
+				registerMap.put(currentIdent, currentGlobal);
+				buf[bufPointer] = DLX.assemble(36, 0, 30, currentGlobal);
+			}
+			numParams += arraySize;
+			currentGlobal -= arraySize * 4;
 		}
-		numParams++;
+
+
 		bufPointer++;
-		currentGlobal -= 4;
+
 		scanner.Next();
 		while (scanner.sym == 31) {
 			scanner.Next();
