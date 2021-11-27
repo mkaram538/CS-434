@@ -126,8 +126,10 @@ public class Compiler
 	}
 
 	public int[] designatorCheck(boolean isFunction) {
+		System.out.println("Gets into designator");
 		int[] designatorNumReg = new int[2];
 		int designatorRegister = nextRegister;
+		nextRegister++;
 		int offset;
 		String currentIdent = scanner.Id2String(scanner.id);
 
@@ -136,11 +138,13 @@ public class Compiler
 		} else {
 			offset = registerMap.get(currentIdent);
 		}
+		
 		designatorNumReg[1] = designatorRegister;
 
 		scanner.Next();
 		if (scanner.sym == 32) {
-			int arrayIndex;
+			designatorNumReg[0] = 2;
+			int arrayIndexReg;
 			scanner.Next();
 			int[] firstIndex = expressionCheck(isFunction);
 			int firstRegister = firstIndex[1];
@@ -165,12 +169,21 @@ public class Compiler
 					nextRegister++;
 				}
 
-				buf[bufPointer] = DLX.assemble(14, secondRegister, arrayRowSize.get(currentIdent));
+				buf[bufPointer] = DLX.assemble(30, secondRegister, arrayRowSize.get(currentIdent));
 				bufPointer++;
-				buf[bufPointer] = DLX.assemble(14, firstRegister, arrayColumnSize.get(currentIdent));
+				buf[bufPointer] = DLX.assemble(30, firstRegister, arrayColumnSize.get(currentIdent));
 				bufPointer++;
+				buf[bufPointer] = DLX.assemble(18, nextRegister, firstRegister, arrayRowSize.get(currentIdent));
 
-				arrayIndex = 
+				arrayIndexReg = nextRegister;
+				designatorNumReg[1] = arrayIndexReg;
+
+				nextRegister++;
+				bufPointer++;
+				buf[bufPointer] = DLX.assemble(0, arrayIndexReg, arrayIndexReg, secondRegister);
+				bufPointer++;
+				buf[bufPointer] = DLX.assemble(18, arrayIndexReg, arrayIndexReg, 4);
+				bufPointer++;
 
 				if (scanner.sym != 34) {
 					printError(40);
@@ -179,7 +192,20 @@ public class Compiler
 			} else {
 				buf[bufPointer] = DLX.assemble(14, firstRegister, arrayRowSize.get(currentIdent));
 				bufPointer++;
+				buf[bufPointer] = DLX.assemble(18, nextRegister, firstRegister, 4);
+				arrayIndexReg = nextRegister;
+				nextRegister++;
+				bufPointer++;
 			}
+			buf[bufPointer] = DLX.assemble(16, arrayIndexReg, arrayIndexReg, offset);
+			bufPointer++;
+			if (isFunction) {
+				buf[bufPointer] = DLX.assemble(33, designatorRegister, 28, arrayIndexReg);
+			} else {
+				buf[bufPointer] = DLX.assemble(33, designatorRegister, 30, arrayIndexReg);
+			}
+			bufPointer++;
+			if (!currentRegisters.contains(designatorRegister)) currentRegisters.add(designatorRegister);
 		} else {
 			if (isFunction) {
 				buf[bufPointer] = DLX.assemble(32, designatorRegister, 28, offset);
@@ -187,9 +213,9 @@ public class Compiler
 				buf[bufPointer] = DLX.assemble(32, designatorRegister, 30, offset);
 			}
 			bufPointer++;
-			if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
-			nextRegister++;
+			if (!currentRegisters.contains(designatorRegister)) currentRegisters.add(designatorRegister);
 		}
+		System.out.println("Gets out of designator");
 		return designatorNumReg;
 	}
 
@@ -362,6 +388,7 @@ public class Compiler
 			printError(5);
 		}
 		int offset;
+		int[] designatorReg = designatorCheck(isFunction);
 		String currentIdent = scanner.Id2String(scanner.id);
 		if (isFunction) {
 			offset = functionOffsetMap.get(currentIdent);
@@ -635,7 +662,8 @@ public class Compiler
 	public int[] typeDeclCheck(boolean isFunction) {
 		int[] typeSize = new int[3];
 		if (scanner.sym == 110) {
-			varDeclCheck(isFunction);
+			scanner.Next();
+			return typeSize;
 		} else if (scanner.sym == 111){
 			int firstSize;
 			scanner.Next();
@@ -695,10 +723,7 @@ public class Compiler
 			currentGlobal -= 4;
 			numParams++;
 		} else if (varTypeSize[0] == 1) {
-			buf[bufPointer] = DLX.assemble(16, nextRegister, 0, varTypeSize[1]);
-			arrayRowSize.put(currentIdent, nextRegister);
-			bufPointer++;
-			nextRegister++;
+			arrayRowSize.put(currentIdent, varTypeSize[1]);
 
 			arraySize = varTypeSize[1];
 			if (isFunction) {
@@ -711,15 +736,8 @@ public class Compiler
 			numParams += arraySize;
 			currentGlobal -= arraySize * 4;
 		} else {
-			buf[bufPointer] = DLX.assemble(16, nextRegister, 0, varTypeSize[2]);
-			arrayRowSize.put(currentIdent, nextRegister);
-			bufPointer++;
-			nextRegister++;
-
-			buf[bufPointer] = DLX.assemble(16, nextRegister, 0, varTypeSize[1]);
-			arrayColumnSize.put(currentIdent, nextRegister);
-			bufPointer++;
-			nextRegister++;
+			arrayRowSize.put(currentIdent, varTypeSize[2]);
+			arrayColumnSize.put(currentIdent, varTypeSize[1]);
 
 			arraySize = varTypeSize[2] * varTypeSize[1];
 			if (isFunction) {
@@ -873,10 +891,12 @@ public class Compiler
 		scanner.Next();
 
 		// Check if next character is var, if so stores them in R30
-		if (scanner.sym == 110) {
+		while (scanner.sym == 110 || scanner.sym == 111) {
 			varDeclCheck(false);
 			scanner.Next();
 		}
+
+		System.out.println("Makes it out");
 
 		buf[bufPointer] = DLX.assemble(17, 28, 30, (-1 * currentGlobal));
 		bufPointer++;
@@ -903,6 +923,7 @@ public class Compiler
 		if (scanner.sym != 80) {
 			printError(scanner.sym);
 		}
+		System.out.println("Gets here?");
 		expect(".");
 		buf[bufPointer] = DLX.assemble(49, 0);
 		bufPointer++;
