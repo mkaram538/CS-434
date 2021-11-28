@@ -557,8 +557,8 @@ public class DLX {
 	}
 
 	static int F1(int op, int a, int b, int c) {
-		System.out.println(" op = " + op + " a = " + a
-				+ " b = " + b + " c = " + c);
+//		System.out.println(" op = " + op + " a = " + a
+//				+ " b = " + b + " c = " + c);
 		if (c < 0) c ^= 0xFFFF0000;
 		if ((a & ~0x1F | b & ~0x1F | c & ~0xFFFF) != 0) {
 			bug(1);
@@ -567,8 +567,8 @@ public class DLX {
 	}
 
 	static int F2(int op, int a, int b, int c) {
-		System.out.println(" op = " + op + " a = " + a
-				+ " b = " + b + " c = " + c);
+//		System.out.println(" op = " + op + " a = " + a
+//				+ " b = " + b + " c = " + c);
 		if ((a & ~0x1F | b & ~0x1F | c & ~0x1F) != 0) {
 			System.out.println("Illegal Operand(s) for F2 Format.");
 			bug(1);
@@ -577,8 +577,8 @@ public class DLX {
 	}
 
 	static int F3(int op, int c) {
-		System.out.println(" op = " + op + " a = " + a
-				+ " b = " + b + " c = " + c);
+//		System.out.println(" op = " + op + " a = " + a
+//				+ " b = " + b + " c = " + c);
 		if ((c < 0) || (c > MemSize)) {
 			System.out.println("Operand for F3 Format is referencing " +
 					"non-existent memory location.");

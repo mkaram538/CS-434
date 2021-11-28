@@ -1,17 +1,38 @@
 main
-array [2][3][4] a;
+array[434] data;
 
-procedure rec(n)
+
+procedure cleardata()
+var i;
 {
-  if n == 0 then return fi;
-  call outputnum(n);
-  call rec(n - 1);
+  let i <- 0;
+  while i < 434 do
+    let data[i] <- i+1;
+    let i <- i + 1;
+  od;
 };
 
+
+procedure output()
+var i;
 {
-  let a[1][2][3] <- 8;
-  call rec(a[1][2][3]);
+  let i <- 0;
+  while i < 434 do
+    call outputnum(data[i]);
+    let i <- i + 1;
+    if i == 10 then
+        let i <- 434-i;
+    fi;
+  od;
+  call outputnewline();
+};
+
+
+{
+  call cleardata;
+  call output;
 }.
+
 
 
   
