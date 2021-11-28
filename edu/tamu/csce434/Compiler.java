@@ -27,6 +27,10 @@ public class Compiler
 	public java.util.Map<String, Integer> startingPc = new java.util.HashMap<>();
 	public java.util.Map<String, Integer> arrayRowSize = new java.util.HashMap<>();
 	public java.util.Map<String, Integer> arrayColumnSize = new java.util.HashMap<>();
+	public java.util.Map<String, Integer> arrayLevelSize = new java.util.HashMap<>();
+	public java.util.Map<String, Integer> arrayRowSizeReg = new java.util.HashMap<>();
+	public java.util.Map<String, Integer> arrayColumnSizeReg = new java.util.HashMap<>();
+	public java.util.Map<String, Integer> arrayLevelSizeReg = new java.util.HashMap<>();
 
 	// Constructor of your Compiler
 	public Compiler(String args) {
@@ -40,11 +44,25 @@ public class Compiler
 		return java.util.Arrays.copyOf(buf, bufPointer);
 	}
 
+	int getNextRegister() {
+		int currentReg = nextRegister;
+
+		while (currentRegisters.contains(currentReg) || currentReg > 27) {
+			if (currentReg < 1 || currentReg > 27) {
+				currentReg = 1;
+			} else {
+				currentReg++;
+			}
+		}
+		nextRegister = currentReg;
+		return currentReg;
+	}
+
 	private void printError(int p) {
-//		for (int i = 0; i < bufPointer; i++) {
-//			DLX.disassem(buf[i]);
-//			System.out.println("CD = " + i + " op = " + DLX.op + " a = " + DLX.a + " b = " + DLX.b + " c = " + DLX.c);
-//		}
+		for (int i = 0; i < bufPointer; i++) {
+			DLX.disassem(buf[i]);
+			System.out.println("CD = " + i + " op = " + DLX.op + " a = " + DLX.a + " b = " + DLX.b + " c = " + DLX.c);
+		}
 		System.out.println("error: " + p);
 		System.exit(0);
 	}
@@ -78,7 +96,7 @@ public class Compiler
 	}
 
 	public void relOperation(int statementType, int leftRegister[], int relationType, int rightRegister[]) {
-		int relOpRegister = nextRegister;
+		int relOpRegister = getNextRegister();
 		if (leftRegister[0] == 1 & rightRegister[0] == 1) {
 			int comparison = leftRegister[1] - rightRegister[1];
 			buf[bufPointer] = DLX.assemble(16, relOpRegister, 0, comparison);
@@ -89,7 +107,6 @@ public class Compiler
 		}
 		if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 		bufPointer++;
-		nextRegister++;
 
 		if (statementType == 0) {
 			ifCondLocation.add(0, bufPointer);
@@ -126,103 +143,243 @@ public class Compiler
 	}
 
 	public int[] designatorCheck(boolean isFunction) {
-		System.out.println("Gets into designator");
 		int[] designatorNumReg = new int[2];
-		int designatorRegister = nextRegister;
-		nextRegister++;
+		int designatorRegister;
 		int offset;
 		String currentIdent = scanner.Id2String(scanner.id);
 
+		// Get starting index of variable in stack
 		if (isFunction) {
 			offset = functionOffsetMap.get(currentIdent);
 		} else {
 			offset = registerMap.get(currentIdent);
 		}
-		
-		designatorNumReg[1] = designatorRegister;
 
 		scanner.Next();
+		// If next character is [, then ident is an array
 		if (scanner.sym == 32) {
+
+			// 2 shows that this is an array
 			designatorNumReg[0] = 2;
 			int arrayIndexReg;
+			int arrayIndex;
 			scanner.Next();
+
+			// Gets the register/value of the first index
 			int[] firstIndex = expressionCheck(isFunction);
 			int firstRegister = firstIndex[1];
-			if (firstIndex[0] == 1) {
-				buf[bufPointer] = DLX.assemble(16, nextRegister, 0, firstIndex[1]);
-				firstRegister = nextRegister;
-				bufPointer++;
-				nextRegister++;
-			}
+
 			if (scanner.sym != 34) {
 				printError(40);
 			}
 			scanner.Next();
+
+			// If next character is [, then ident is a 2D array
 			if (scanner.sym == 32) {
 				scanner.Next();
+
+				// Gets the register/value of the second index
 				int[] secondIndex = expressionCheck(isFunction);
 				int secondRegister = secondIndex[1];
-				if (secondIndex[0] == 1) {
-					buf[bufPointer] = DLX.assemble(16, nextRegister, 0, secondIndex[1]);
-					secondRegister = nextRegister;
-					bufPointer++;
-					nextRegister++;
-				}
-
-				buf[bufPointer] = DLX.assemble(30, secondRegister, arrayRowSize.get(currentIdent));
-				bufPointer++;
-				buf[bufPointer] = DLX.assemble(30, firstRegister, arrayColumnSize.get(currentIdent));
-				bufPointer++;
-				buf[bufPointer] = DLX.assemble(18, nextRegister, firstRegister, arrayRowSize.get(currentIdent));
-
-				arrayIndexReg = nextRegister;
-				designatorNumReg[1] = arrayIndexReg;
-
-				nextRegister++;
-				bufPointer++;
-				buf[bufPointer] = DLX.assemble(0, arrayIndexReg, arrayIndexReg, secondRegister);
-				bufPointer++;
-				buf[bufPointer] = DLX.assemble(18, arrayIndexReg, arrayIndexReg, 4);
-				bufPointer++;
 
 				if (scanner.sym != 34) {
 					printError(40);
 				}
 				scanner.Next();
+
+				// If next character is [, then ident is a 3D array
+				if (scanner.sym == 32) {
+					scanner.Next();
+
+					// Gets the register/value of the third index
+					int[] thirdIndex = expressionCheck(isFunction);
+					int thirdRegister = thirdIndex[1];
+
+					// All indices are integers
+					if (firstIndex[0] == 1 && secondIndex[0] == 1 && thirdIndex[0] == 1) {
+						// Checks the indexes against the size of the array
+						buf[bufPointer] = DLX.assemble(30, arrayRowSizeReg.get(currentIdent), thirdIndex[1]);
+						bufPointer++;
+						buf[bufPointer] = DLX.assemble(30, arrayColumnSizeReg.get(currentIdent), secondIndex[1]);
+						bufPointer++;
+						buf[bufPointer] = DLX.assemble(30, arrayLevelSizeReg.get(currentIdent), firstIndex[1]);
+						bufPointer++;
+
+						// Calculates final offset given that all inputs are integers
+						arrayIndex = arrayRowSize.get(currentIdent) * arrayColumnSizeReg.get(currentIdent) * firstIndex[1];
+						arrayIndex += arrayRowSize.get(currentIdent) * secondIndex[1];
+						arrayIndex += thirdIndex[1];
+						offset = arrayIndex * -4 + offset;
+
+						// Store offset in register
+						arrayIndexReg = getNextRegister();
+						buf[bufPointer] = DLX.assemble(16, arrayIndexReg, 0, offset);
+						bufPointer++;
+					}
+					// First two indices are integers
+//					} else if (firstIndex[0] == 1 && secondIndex[0] == 1) {
+//						// Checks the indexes against the size of the array
+//						buf[bufPointer] = DLX.assemble(30, arrayRowSizeReg.get(currentIdent), thirdIndex[1]);
+//						bufPointer++;
+//						buf[bufPointer] = DLX.assemble(30, arrayRowSizeReg.get(currentIdent), secondIndex[1]);
+//						bufPointer++;
+//						buf[bufPointer] = DLX.assemble(30, arrayColumnSizeReg.get(currentIdent), firstIndex[1]);
+//						bufPointer++;
+//					}
+
+					if (scanner.sym != 34) {
+						printError(40);
+					}
+					scanner.Next();
+				}
+
+				// Both indexes are integers
+				if (firstIndex[0] == 1 && secondIndex[0] == 1) {
+					// Checks the indexes against the size of the array
+					buf[bufPointer] = DLX.assemble(30, arrayRowSizeReg.get(currentIdent), secondIndex[1]);
+					bufPointer++;
+					buf[bufPointer] = DLX.assemble(30, arrayColumnSizeReg.get(currentIdent), firstIndex[1]);
+					bufPointer++;
+
+					// Calculates final offset given that all inputs are integers
+					arrayIndex = (arrayRowSize.get(currentIdent) * firstIndex[1] + secondIndex[1]) * -4;
+					offset = arrayIndex + offset;
+
+					// Store offset in register
+					arrayIndexReg = getNextRegister();
+					buf[bufPointer] = DLX.assemble(16, arrayIndexReg, 0, offset);
+					bufPointer++;
+
+				// Only first index is an integer
+				} else if (firstIndex[0] == 1) {
+					// Checks the indexes against the size of the array
+					buf[bufPointer] = DLX.assemble(30, secondRegister, arrayRowSize.get(currentIdent));
+					bufPointer++;
+					buf[bufPointer] = DLX.assemble(30, arrayColumnSizeReg.get(currentIdent), firstIndex[1]);
+					bufPointer++;
+
+					arrayIndex = arrayRowSize.get(currentIdent) * firstIndex[1];
+					// Add the row offset with the column offset
+					buf[bufPointer] = DLX.assemble(16, getNextRegister(), secondRegister, arrayIndex);
+					bufPointer++;
+
+					// Multiply result by 4 to get byte offset
+					buf[bufPointer] = DLX.assemble(18, nextRegister, nextRegister, -4);
+					bufPointer++;
+
+					arrayIndexReg = nextRegister;
+
+					// Add array offset to base offset to get the stack index
+					buf[bufPointer] = DLX.assemble(16, arrayIndexReg, arrayIndexReg, offset);
+					bufPointer++;
+
+				// Only second index is an integer
+				} else if (secondIndex[0] == 1) {
+					buf[bufPointer] = DLX.assemble(30, arrayRowSizeReg.get(currentIdent), secondIndex[1]);
+					bufPointer++;
+					buf[bufPointer] = DLX.assemble(30, firstRegister, arrayColumnSize.get(currentIdent));
+					bufPointer++;
+
+					arrayIndexReg = getNextRegister();
+
+					// Multiply the current row by the row size
+					buf[bufPointer] = DLX.assemble(18, nextRegister, firstRegister, arrayRowSize.get(currentIdent));
+					bufPointer++;
+
+					// Add the row offset with the column offset
+					buf[bufPointer] = DLX.assemble(16, arrayIndexReg, arrayIndexReg, secondIndex[1]);
+					bufPointer++;
+
+					// Multiply result by 4 to get byte offset
+					buf[bufPointer] = DLX.assemble(18, arrayIndexReg, arrayIndexReg, -4);
+					bufPointer++;
+
+					// Add array offset to base offset to get the stack index
+					buf[bufPointer] = DLX.assemble(16, arrayIndexReg, arrayIndexReg, offset);
+					bufPointer++;
+
+				// Both indices are stored in registers
+				} else {
+					// Checks the indexes against the size of the array
+					buf[bufPointer] = DLX.assemble(30, secondRegister, arrayRowSize.get(currentIdent));
+					bufPointer++;
+					buf[bufPointer] = DLX.assemble(30, firstRegister, arrayColumnSize.get(currentIdent));
+					bufPointer++;
+
+					// Begin calculating the index of the specified index on stack
+					arrayIndexReg = getNextRegister();
+					designatorNumReg[1] = arrayIndexReg;
+
+					// Multiply the current row by the row size
+					buf[bufPointer] = DLX.assemble(18, nextRegister, firstRegister, arrayRowSize.get(currentIdent));
+					bufPointer++;
+
+					// Add the row offset with the column offset
+					buf[bufPointer] = DLX.assemble(0, arrayIndexReg, arrayIndexReg, secondRegister);
+					bufPointer++;
+
+					// Multiply result by 4 to get byte offset
+					buf[bufPointer] = DLX.assemble(18, arrayIndexReg, arrayIndexReg, -4);
+					bufPointer++;
+
+					// Add array offset to base offset to get the stack index
+					buf[bufPointer] = DLX.assemble(16, arrayIndexReg, arrayIndexReg, offset);
+					bufPointer++;
+				}
+
+			// Branch is reached if ident is a 1D array
 			} else {
-				buf[bufPointer] = DLX.assemble(14, firstRegister, arrayRowSize.get(currentIdent));
-				bufPointer++;
-				buf[bufPointer] = DLX.assemble(18, nextRegister, firstRegister, 4);
-				arrayIndexReg = nextRegister;
-				nextRegister++;
-				bufPointer++;
+				// Only index is an integer
+				if (firstIndex[0] == 1) {
+					// Checks the indexes against the size of the array
+					buf[bufPointer] = DLX.assemble(30, arrayRowSizeReg.get(currentIdent), firstIndex[1]);
+					bufPointer++;
+
+					// Calculates final offset given that all inputs are integers
+					arrayIndex = firstIndex[1] * -4;
+					offset = arrayIndex + offset;
+
+					// Store offset in register
+					arrayIndexReg = getNextRegister();
+					buf[bufPointer] = DLX.assemble(16, arrayIndexReg, 0, offset);
+					bufPointer++;
+
+				// Only index is stored in register
+				} else {
+					// Checks the index against the row size
+					buf[bufPointer] = DLX.assemble(30, firstRegister, arrayRowSize.get(currentIdent));
+					bufPointer++;
+
+					// Multiplies the row index by 4 to get stack index
+					arrayIndexReg = getNextRegister();
+					buf[bufPointer] = DLX.assemble(18, nextRegister, firstRegister, -4);
+					bufPointer++;
+
+					// Add array offset to base offset to get the stack index
+					buf[bufPointer] = DLX.assemble(16, arrayIndexReg, arrayIndexReg, offset);
+					bufPointer++;
+				}
 			}
-			buf[bufPointer] = DLX.assemble(16, arrayIndexReg, arrayIndexReg, offset);
-			bufPointer++;
-			if (isFunction) {
-				buf[bufPointer] = DLX.assemble(33, designatorRegister, 28, arrayIndexReg);
-			} else {
-				buf[bufPointer] = DLX.assemble(33, designatorRegister, 30, arrayIndexReg);
-			}
-			bufPointer++;
-			if (!currentRegisters.contains(designatorRegister)) currentRegisters.add(designatorRegister);
+			// Store offset register in return array
+			designatorNumReg[1] = arrayIndexReg;
+			designatorRegister = arrayIndexReg;
+		// Gets to this branch if ident is not an array
 		} else {
-			if (isFunction) {
-				buf[bufPointer] = DLX.assemble(32, designatorRegister, 28, offset);
-			} else {
-				buf[bufPointer] = DLX.assemble(32, designatorRegister, 30, offset);
-			}
-			bufPointer++;
-			if (!currentRegisters.contains(designatorRegister)) currentRegisters.add(designatorRegister);
+			// Stores variable offset in designator register which is in return array
+			buf[bufPointer] = DLX.assemble(16, getNextRegister(), 0, offset);
+			designatorNumReg[1] = nextRegister;
+			designatorRegister = nextRegister;
 		}
-		System.out.println("Gets out of designator");
+		bufPointer++;
+		if (!currentRegisters.contains(designatorRegister)) currentRegisters.add(designatorRegister);
 		return designatorNumReg;
 	}
 
 	public int[] factorCheck(boolean isFunction) {
 		int[] factorNumReg = new int[2];
-		int factorRegister = nextRegister;
-		if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
+		int factorRegister = getNextRegister();
+
+		// Factor is "(expression)"
 		if (scanner.sym == 50) {
 			scanner.Next();
 			factorNumReg = expressionCheck(isFunction);
@@ -231,22 +388,33 @@ public class Compiler
 				factorNumReg[0] = 0;
 				factorNumReg[1] = factorRegister;
 				bufPointer++;
-				if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
-				nextRegister++;
 			}
 			if (scanner.sym != 35) {
 				printError(3);
 			}
 			scanner.Next();
+			if (!currentRegisters.contains(factorRegister)) currentRegisters.add(factorRegister);
 			return factorNumReg;
+			// Factor is "number"
 		} else if (scanner.sym == 60) {
 			factorNumReg[0] = 1;
 			factorNumReg[1] = scanner.val;
 			scanner.Next();
 			return factorNumReg;
+			// Factor is "designator"
 		} else if (scanner.sym == 61) {
-			factorNumReg = designatorCheck(isFunction);
+			int offsetRegister = designatorCheck(isFunction)[1];
+			// Stores the value at the passed offset in a register and returns it
+			if (isFunction) {
+				buf[bufPointer] = DLX.assemble(33, nextRegister, 28, offsetRegister);
+			} else {
+				buf[bufPointer] = DLX.assemble(33, nextRegister, 30, offsetRegister);
+			}
+			factorNumReg[1] = nextRegister;
+			if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
+			bufPointer++;
 			return factorNumReg;
+			// Factor is "funcCall"
 		} else if (scanner.sym == 100) {
 			factorRegister = funcCallCheck(isFunction);
 			factorNumReg[1] = factorRegister;
@@ -262,7 +430,7 @@ public class Compiler
 	public int[] termCheck(boolean isFunction) {
 		int[] termNumReg;
 		int termRegister;
-		if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
+
 		int[] leftFactorRegister = factorCheck(isFunction);
 		boolean multiplying;
 		// Needed for function calls
@@ -273,8 +441,9 @@ public class Compiler
 		while (scanner.sym == 1 || scanner.sym == 2) {
 			multiplying = scanner.sym == 1;
 			scanner.Next();
+			termRegister = getNextRegister();
+			if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 			int[] rightFactorRegister = factorCheck(isFunction);
-			termRegister = nextRegister;
 			if (leftFactorRegister[0] == 1 & rightFactorRegister[0] == 1) {
 				if (multiplying) {
 					leftFactorRegister[1] = leftFactorRegister[1] * rightFactorRegister[1];
@@ -286,12 +455,9 @@ public class Compiler
 					if (multiplying) {
 						buf[bufPointer] = DLX.assemble(18, termRegister, rightFactorRegister[1], leftFactorRegister[1]);
 					} else {
-						buf[bufPointer] = DLX.assemble(16, termRegister, 0, leftFactorRegister[1]);
-						if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
-						nextRegister++;
+						buf[bufPointer] = DLX.assemble(16, getNextRegister(), 0, leftFactorRegister[1]);
 						bufPointer++;
-						buf[bufPointer] = DLX.assemble(3, nextRegister, termRegister, rightFactorRegister[1]);
-						termRegister = nextRegister;
+						buf[bufPointer] = DLX.assemble(3, termRegister, nextRegister, rightFactorRegister[1]);
 					}
 				} else if (rightFactorRegister[0] == 1) {
 					if (multiplying) {
@@ -309,7 +475,6 @@ public class Compiler
 				leftFactorRegister[1] = termRegister;
 				leftFactorRegister[0] = 0;
 				bufPointer++;
-				nextRegister++;
 			}
 			if (scanner.sym != 70) {
 				scanner.Next();
@@ -330,9 +495,9 @@ public class Compiler
 		while (scanner.sym == 11 || scanner.sym == 12) {
 			adding = scanner.sym == 11;
 			scanner.Next();
-			int[] rightExpressionRegister = termCheck(isFunction);
-			expressionRegister = nextRegister;
+			expressionRegister = getNextRegister();
 			if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
+			int[] rightExpressionRegister = termCheck(isFunction);
 			if (leftExpressionRegister[0] == 1 & rightExpressionRegister[0] == 1) {
 				if (adding) {
 					leftExpressionRegister[1] = leftExpressionRegister[1] + rightExpressionRegister[1];
@@ -362,7 +527,6 @@ public class Compiler
 				leftExpressionRegister[1] = expressionRegister;
 				leftExpressionRegister[0] = 0;
 				bufPointer++;
-				nextRegister++;
 			}
 		}
 		exprNumReg = leftExpressionRegister;
@@ -384,38 +548,36 @@ public class Compiler
 
 	public void assignmentCheck(boolean isFunction) {
 		scanner.Next();
-		if (scanner.sym != 61) {
-			printError(5);
-		}
-		int offset;
 		int[] designatorReg = designatorCheck(isFunction);
-		String currentIdent = scanner.Id2String(scanner.id);
-		if (isFunction) {
-			offset = functionOffsetMap.get(currentIdent);
-		} else {
-			offset = registerMap.get(currentIdent);
+		int offsetRegister = designatorReg[1];
+
+		if (scanner.sym != 40) {
+			printError(50);
 		}
-		expect("<-");
+
 		scanner.Next();
 		int[] expressionRegister = expressionCheck(isFunction);
 
+		// If expression is an integer
 		if (expressionRegister[0] == 1) {
-			buf[bufPointer] = DLX.assemble(16, nextRegister, 0, expressionRegister[1]);
+			// Store integer in new register
+			buf[bufPointer] = DLX.assemble(16, getNextRegister(), 0, expressionRegister[1]);
 			bufPointer++;
+
+			// Store value of expression at offset register's value
 			if (isFunction) {
-				buf[bufPointer] = DLX.assemble(36, nextRegister, 28, offset);
+				buf[bufPointer] = DLX.assemble(37, nextRegister, 28, offsetRegister);
 			} else {
-				buf[bufPointer] = DLX.assemble(36, nextRegister, 30, offset);
+				buf[bufPointer] = DLX.assemble(37, nextRegister, 30, offsetRegister);
 			}
-			if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 			bufPointer++;
-			nextRegister++;
 			return;
 		}
+		// Store value of expression at offset register's value
 		if (isFunction) {
-			buf[bufPointer] = DLX.assemble(36, expressionRegister[1], 28, offset);
+			buf[bufPointer] = DLX.assemble(37, expressionRegister[1], 28, offsetRegister);
 		} else {
-			buf[bufPointer] = DLX.assemble(36, expressionRegister[1], 30, offset);
+			buf[bufPointer] = DLX.assemble(37, expressionRegister[1], 30, offsetRegister);
 		}
 		bufPointer++;
 
@@ -431,11 +593,10 @@ public class Compiler
 				expect(")");
 			}
 			scanner.Next();
-			int inputRegister = nextRegister;
+			int inputRegister = getNextRegister();
 			buf[bufPointer] = DLX.assemble(50, inputRegister);
 			if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 			bufPointer++;
-			nextRegister++;
 			return inputRegister;
 		}
 
@@ -451,11 +612,10 @@ public class Compiler
 
 		if (funcType.equals("outputnum")) {
 			if (funcValueRegister[0] == 1) {
-				buf[bufPointer] = DLX.assemble(16, nextRegister, 0, funcValueRegister[1]);
+				buf[bufPointer] = DLX.assemble(16, getNextRegister(), 0, funcValueRegister[1]);
 				funcValueRegister[1] = nextRegister;
 				if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 				bufPointer++;
-				nextRegister++;
 			}
 			buf[bufPointer] = DLX.assemble(51, funcValueRegister[1]);
 		} else {
@@ -495,7 +655,7 @@ public class Compiler
 		if (scanner.sym != 35) {
 			funcValueRegister = expressionCheck(isFunction);
 			if (funcValueRegister[0] == 1) {
-				buf[bufPointer] = DLX.assemble(16, nextRegister, 0, funcValueRegister[1]);
+				buf[bufPointer] = DLX.assemble(16, getNextRegister(), 0, funcValueRegister[1]);
 				funcValueRegister[1] = nextRegister;
 				bufPointer++;
 
@@ -503,19 +663,18 @@ public class Compiler
 			buf[bufPointer] = DLX.assemble(38, funcValueRegister[1], 29, -4);
 			if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 			bufPointer++;
-			nextRegister++;
+
 			while (scanner.sym == 31) {
 				scanner.Next();
 				funcValueRegister = expressionCheck(isFunction);
 				if (funcValueRegister[0] == 1) {
-					buf[bufPointer] = DLX.assemble(16, nextRegister, 0, funcValueRegister[1]);
+					buf[bufPointer] = DLX.assemble(16, getNextRegister(), 0, funcValueRegister[1]);
 					funcValueRegister[1] = nextRegister;
 					bufPointer++;
 				}
 				buf[bufPointer] = DLX.assemble(38, funcValueRegister[1], 29, -4);
 				if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 				bufPointer++;
-				nextRegister++;
 			}
 			if (scanner.sym != 35) {
 				printError(8);
@@ -535,10 +694,9 @@ public class Compiler
 
 		nextRegister = currentRegisters.size() > 0 ? currentRegisters.lastElement() + 1 : 1;
 
-		buf[bufPointer] = DLX.assemble(32, nextRegister, 30, -4);
+		buf[bufPointer] = DLX.assemble(32, getNextRegister(), 30, -4);
 		if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 		bufPointer++;
-		nextRegister++;
 		return currentRegisters.lastElement();
 	}
 
@@ -605,18 +763,16 @@ public class Compiler
 		scanner.Next();
 		if (scanner.sym == 70) {
 			scanner.Next();
-		}
-		else {
+		} else if (scanner.sym != 82){
 			int[] expressionRegister = expressionCheck(isFunction);
 			if (expressionRegister[0] == 1) {
-				buf[bufPointer] = DLX.assemble(16, nextRegister, 0, expressionRegister[1]);
+				buf[bufPointer] = DLX.assemble(16, getNextRegister(), 0, expressionRegister[1]);
 				expressionRegister[1] = nextRegister;
 				bufPointer++;
 			}
 			buf[bufPointer] = DLX.assemble(36, expressionRegister[1], 30, -4);
 			if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 			bufPointer++;
-			nextRegister++;
 		}
 		// Branches to the end of the function in case of returns before end of function
 		buf[bufPointer] = DLX.assemble(40, 0, 0);
@@ -660,10 +816,14 @@ public class Compiler
 	}
 
 	public int[] typeDeclCheck(boolean isFunction) {
-		int[] typeSize = new int[3];
+		// typeSize[var type][row size][col size][row size reg][col size reg]
+		// typeSize[0] = var, typeSize[1] = 1D array, typeSize[2] = 2D array
+		int[] typeSize = new int[7];
+		// Type is var, pass back to varDecl
 		if (scanner.sym == 110) {
 			scanner.Next();
 			return typeSize;
+		// Type is array
 		} else if (scanner.sym == 111){
 			int firstSize;
 			scanner.Next();
@@ -674,105 +834,175 @@ public class Compiler
 			if (scanner.sym != 60) {
 				printError(31);
 			}
+
+			// Get and store first size value for array as register and value
 			firstSize = scanner.val;
+			buf[bufPointer] = DLX.assemble(16, getNextRegister(), 0, firstSize);
+			if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
+			typeSize[4] = nextRegister;
+			bufPointer++;
 			typeSize[1] = firstSize;
+
 			scanner.Next();
 			if (scanner.sym != 34) {
 				printError(32);
 			}
 			scanner.Next();
+
+			// Type is 2D or 3D array
 			if (scanner.sym == 32) {
 				int secondSize;
 				scanner.Next();
 				if (scanner.sym != 60) {
 					printError(33);
 				}
+
+				// Get and store second size value for array as register and value
 				secondSize = scanner.val;
+				buf[bufPointer] = DLX.assemble(16, getNextRegister(), 0, secondSize);
+				if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
+				typeSize[5] = nextRegister;
+				bufPointer++;
 				typeSize[2] = secondSize;
+
 				scanner.Next();
 				if (scanner.sym != 34) {
 					printError(34);
 				}
 				scanner.Next();
-				typeSize[0] = 2;
+
+				// Type is 3D array
+				if (scanner.sym == 32) {
+					int thirdSize;
+					scanner.Next();
+					if (scanner.sym != 60) {
+						printError(33);
+					}
+
+					// Get and store third size value for array as register and value
+					thirdSize = scanner.val;
+					buf[bufPointer] = DLX.assemble(16, getNextRegister(), 0, thirdSize);
+					if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
+					typeSize[6] = nextRegister;
+					bufPointer++;
+					typeSize[3] = thirdSize;
+
+					scanner.Next();
+					if (scanner.sym != 34) {
+						printError(34);
+					}
+					scanner.Next();
+					typeSize[0] = 3;
+				}
+				//Type is 2D array
+				else {
+					typeSize[0] = 2;
+				}
+			// Type is 1D array
 			} else {
 				typeSize[0] = 1;
 			}
-
 		}
 		return typeSize;
 	}
 
 	public void varDeclCheck(boolean isFunction) {
-		currentGlobal = 0;
+		if (isFunction) {
+			currentGlobal = 0;
+		}
+		// Passed back at "ident"
 		int[] varTypeSize = typeDeclCheck(isFunction);
 		if (scanner.sym != 61) {
 			printError(14);
 		}
 		int arraySize;
+		String currentIdent;
 
-		String currentIdent = scanner.Id2String(scanner.id);
-		if (varTypeSize[0] == 0) {
-			if (isFunction) {
-				functionOffsetMap.put(currentIdent, (numParams + 1) * -4);
-				buf[bufPointer] = DLX.assemble(36, 0, 28, (numParams + 1) * -4);
-			} else {
-				registerMap.put(currentIdent, currentGlobal);
-				buf[bufPointer] = DLX.assemble(36, 0, 30, currentGlobal);
-			}
-			currentGlobal -= 4;
-			numParams++;
-		} else if (varTypeSize[0] == 1) {
-			arrayRowSize.put(currentIdent, varTypeSize[1]);
-
-			arraySize = varTypeSize[1];
-			if (isFunction) {
-				functionOffsetMap.put(currentIdent, (numParams + 1) * -4);
-				buf[bufPointer] = DLX.assemble(36, 0, 28, (numParams + 1) * -4);
-			} else {
-				registerMap.put(currentIdent, currentGlobal);
-				buf[bufPointer] = DLX.assemble(36, 0, 30, currentGlobal);
-			}
-			numParams += arraySize;
-			currentGlobal -= arraySize * 4;
-		} else {
-			arrayRowSize.put(currentIdent, varTypeSize[2]);
-			arrayColumnSize.put(currentIdent, varTypeSize[1]);
-
-			arraySize = varTypeSize[2] * varTypeSize[1];
-			if (isFunction) {
-				functionOffsetMap.put(currentIdent, (numParams + 1) * -4);
-				buf[bufPointer] = DLX.assemble(36, 0, 28, (numParams + 1) * -4);
-			} else {
-				registerMap.put(currentIdent, currentGlobal);
-				buf[bufPointer] = DLX.assemble(36, 0, 30, currentGlobal);
-			}
-			numParams += arraySize;
-			currentGlobal -= arraySize * 4;
-		}
-
-
-		bufPointer++;
-
-		scanner.Next();
-		while (scanner.sym == 31) {
-			scanner.Next();
-			if (scanner.sym != 61) {
-				printError(15);
+		do {
+			// Necessary on multiple values
+			if (scanner.sym == 31) {
+				scanner.Next();
 			}
 			currentIdent = scanner.Id2String(scanner.id);
-			if (isFunction) {
-				functionOffsetMap.put(currentIdent, (numParams + 1) * -4);
-				buf[bufPointer] = DLX.assemble(36, 0, 28, (numParams + 1) * -4);
-			} else {
-				registerMap.put(currentIdent, currentGlobal);
-				buf[bufPointer] = DLX.assemble(36, 0, 30, currentGlobal);
+			// Variable is int
+			if (varTypeSize[0] == 0) {
+				if (isFunction) {
+					functionOffsetMap.put(currentIdent, (numParams + 1) * -4);
+					buf[bufPointer] = DLX.assemble(36, 0, 28, (numParams + 1) * -4);
+				} else {
+					registerMap.put(currentIdent, currentGlobal);
+					buf[bufPointer] = DLX.assemble(36, 0, 30, currentGlobal);
+				}
+				currentGlobal -= 4;
+				numParams++;
+			// Variable is 1D array
+			} else if (varTypeSize[0] == 1) {
+				// Store first index, that is the size of the array
+				arrayRowSize.put(currentIdent, varTypeSize[1]);
+				arrayRowSizeReg.put(currentIdent, varTypeSize[4]);
+				arraySize = varTypeSize[1];
+
+				// Index 1D array into stacks
+				if (isFunction) {
+					functionOffsetMap.put(currentIdent, (numParams + 1) * -4);
+					buf[bufPointer] = DLX.assemble(36, 0, 28, (numParams + 1) * -4);
+				} else {
+					registerMap.put(currentIdent, currentGlobal);
+					buf[bufPointer] = DLX.assemble(36, 0, 30, currentGlobal);
+				}
+
+				// Increment numParams by the size of the array. That is the number of words needed for array
+				numParams += arraySize;
+				// Decrement currentGlobal by the byte size of the stack
+				currentGlobal -= arraySize * 4;
+			// Variable is 2D array
+			} else if (varTypeSize[0] == 2){
+				// Store both indices, multiply both to get array size
+				arrayRowSize.put(currentIdent, varTypeSize[2]);
+				arrayRowSizeReg.put(currentIdent, varTypeSize[5]);
+				arrayColumnSize.put(currentIdent, varTypeSize[1]);
+				arrayColumnSizeReg.put(currentIdent, varTypeSize[4]);
+				arraySize = varTypeSize[2] * varTypeSize[1];
+
+				// Index 2D array into stacks
+				if (isFunction) {
+					functionOffsetMap.put(currentIdent, (numParams + 1) * -4);
+					buf[bufPointer] = DLX.assemble(36, 0, 28, (numParams + 1) * -4);
+				} else {
+					registerMap.put(currentIdent, currentGlobal);
+					buf[bufPointer] = DLX.assemble(36, 0, 30, currentGlobal);
+				}
+				// Increment numParams by the size of the array. That is the number of words needed for array
+				numParams += arraySize;
+				// Decrement currentGlobal by the byte size of the stack
+				currentGlobal -= arraySize * 4;
+			// Variable is 3D array
+			} else if (varTypeSize[0] == 3){
+				// Store both indices, multiply both to get array size
+				arrayRowSize.put(currentIdent, varTypeSize[3]);
+				arrayRowSizeReg.put(currentIdent, varTypeSize[6]);
+				arrayColumnSize.put(currentIdent, varTypeSize[2]);
+				arrayColumnSizeReg.put(currentIdent, varTypeSize[5]);
+				arrayLevelSize.put(currentIdent, varTypeSize[1]);
+				arrayLevelSizeReg.put(currentIdent, varTypeSize[4]);
+				arraySize = varTypeSize[3] * varTypeSize[2] * varTypeSize[1];
+
+				// Index 3D array into stacks
+				if (isFunction) {
+					functionOffsetMap.put(currentIdent, (numParams + 1) * -4);
+					buf[bufPointer] = DLX.assemble(36, 0, 28, (numParams + 1) * -4);
+				} else {
+					registerMap.put(currentIdent, currentGlobal);
+					buf[bufPointer] = DLX.assemble(36, 0, 30, currentGlobal);
+				}
+				// Increment numParams by the size of the array. That is the number of words needed for array
+				numParams += arraySize;
+				// Decrement currentGlobal by the byte size of the stack
+				currentGlobal -= arraySize * 4;
 			}
-			numParams++;
 			bufPointer++;
-			currentGlobal -= 4;
 			scanner.Next();
-		}
+		} while (scanner.sym == 31);
 
 		if (scanner.sym != 70) {
 			printError(16);
@@ -833,12 +1063,11 @@ public class Compiler
 			if (scanner.sym != 61) {
 				printError(20);
 			}
-			buf[bufPointer] = DLX.assemble(34, nextRegister, 29, 4);
+			buf[bufPointer] = DLX.assemble(34, getNextRegister(), 29, 4);
 			if (!currentRegisters.contains(nextRegister)) currentRegisters.add(nextRegister);
 			bufPointer++;
 			paramReg.add(0, nextRegister);
 			paramName.add(0, scanner.Id2String(scanner.id));
-			nextRegister++;
 
 			numParams++;
 			scanner.Next();
@@ -885,22 +1114,23 @@ public class Compiler
 	}
 
 	public void computationCheck() {
+		currentRegisters.clear();
 		if (scanner.sym != 200) {
 			printError(23);
 		}
 		scanner.Next();
 
-		// Check if next character is var, if so stores them in R30
+		// Check if next character is "var" or "array", if so stores them in R30
 		while (scanner.sym == 110 || scanner.sym == 111) {
 			varDeclCheck(false);
 			scanner.Next();
 		}
 
-		System.out.println("Makes it out");
-
+		// Moves frame pointer to end of global variables
 		buf[bufPointer] = DLX.assemble(17, 28, 30, (-1 * currentGlobal));
 		bufPointer++;
 
+		// Catches stack pointer up to frame pointer
 		buf[bufPointer] = DLX.assemble(17, 29, 28, 0);
 		bufPointer++;
 
@@ -923,7 +1153,6 @@ public class Compiler
 		if (scanner.sym != 80) {
 			printError(scanner.sym);
 		}
-		System.out.println("Gets here?");
 		expect(".");
 		buf[bufPointer] = DLX.assemble(49, 0);
 		bufPointer++;

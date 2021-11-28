@@ -1,8 +1,17 @@
 main
-array[ 10 ] a;
+array [2][3][4] a;
+
+procedure rec(n)
 {
-        let a[1] <- 3;
-        call outputnum(a[1]);
+  if n == 0 then return fi;
+  call outputnum(n);
+  call rec(n - 1);
+};
+
+{
+  let a[1][2][3] <- 8;
+  call rec(a[1][2][3]);
 }.
+
 
   

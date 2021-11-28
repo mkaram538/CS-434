@@ -45,10 +45,10 @@ public class DLX {
 				R[0] = 0;
 				disassem(M[PC]); // initializes op, a, b, c
 				i++;
-				if (i < 400) {
-					System.out.println("PC = " + PC + " op = " + DLX.op + " a = " + DLX.a
-							+ " b = " + DLX.b + " c = " + DLX.c);
-				}
+//				if (i < 400) {
+//					System.out.println("PC = " + PC + " op = " + DLX.op + " a = " + DLX.a
+//							+ " b = " + DLX.b + " c = " + DLX.c);
+//				}
 				int nextPC = PC + 1;
 				if (format==2) {
 					origc = c; // used for RET
@@ -567,6 +567,8 @@ public class DLX {
 	}
 
 	static int F2(int op, int a, int b, int c) {
+		System.out.println(" op = " + op + " a = " + a
+				+ " b = " + b + " c = " + c);
 		if ((a & ~0x1F | b & ~0x1F | c & ~0x1F) != 0) {
 			System.out.println("Illegal Operand(s) for F2 Format.");
 			bug(1);
@@ -575,6 +577,8 @@ public class DLX {
 	}
 
 	static int F3(int op, int c) {
+		System.out.println(" op = " + op + " a = " + a
+				+ " b = " + b + " c = " + c);
 		if ((c < 0) || (c > MemSize)) {
 			System.out.println("Operand for F3 Format is referencing " +
 					"non-existent memory location.");
